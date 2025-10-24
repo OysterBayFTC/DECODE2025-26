@@ -1,5 +1,5 @@
 // TeamCode/src/main/java/org/firstinspires/ftc/teamcode/oysterbay/teleop/OBTeleOp_Shooter.java
-package org.firstinspires.ftc.teamcode.oysterbay.base;
+package org.firstinspires.ftc.teamcode.opmodes;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -48,7 +48,7 @@ public class OBTeleOp_Shooter extends OpMode {
     public void loop() {
         // --- Drive: left bumper for slow mode ---
         boolean squaredInputs = true;
-        double speedMult = gamepad1.left_bumper ? 0.4 : 1.0;
+        double speedMult = gamepad1.left_bumper ? 0.55 : 0.55;
         robot.driveFromGamepad(gamepad1, squaredInputs, speedMult);
 
         // --- Shooter control (variable) ---
