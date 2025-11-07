@@ -17,7 +17,7 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-@Autonomous(name = "AT_Quickstart")
+@Autonomous(name = "AT_Quickstart", group = "OB")
 public class AT_Quickstart extends LinearOpMode {
 
     private VisionPortal visionPortal;
