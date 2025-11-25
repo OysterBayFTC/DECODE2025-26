@@ -21,13 +21,18 @@ public class OBTeleOp_Shooter extends OpMode {
     private DcMotorEx intakeMotor;     // not used by trigger sequence, left available if you want manual control elsewhere
     private Servo tipperServo;
 
+    private Servo leftHolderServo; // servo for sorting
+
+    private Servo rightHolderServo; // servo for sorting
+
+
     // Shooter constants
-    private static final double SHOOTER_POWER = 0.75;     // fixed spin power while trigger is in spin zone or fire zone
+    private static final double SHOOTER_POWER = 0.45;     // fixed spin power while trigger is in spin zone or fire zone
     private static final double SHOOTER_SCALE = 1.0;
 
     // Servo positions
-    private static final double SERVO_FIRE_POS = 0.80;
-    private static final double SERVO_REST_POS = 0.20;
+    private static final double SERVO_FIRE_POS = 0.55;
+    private static final double SERVO_REST_POS = 0.45;
 
     // Trigger thresholds
     private static final double SPIN_THRESHOLD = 0.08;    // slight press starts wheels
@@ -56,6 +61,10 @@ public class OBTeleOp_Shooter extends OpMode {
         shooterRight = hardwareMap.get(DcMotorEx.class, "shooterRight");
         tipperServo  = hardwareMap.get(Servo.class, "tipperServo");
         intakeMotor  = hardwareMap.get(DcMotorEx.class, "intakeMotor");
+        leftHolderServo  = hardwareMap.get(Servo.class, "leftHolderServo"); //in control hub slot #1
+        rightHolderServo  = hardwareMap.get(Servo.class, "rightHolderServo"); // in control hub slot #2
+
+
 
         // Motor directions so positive power pulls the ball inward between wheels
         shooterRight.setDirection(DcMotorSimple.Direction.REVERSE);
@@ -82,9 +91,36 @@ public class OBTeleOp_Shooter extends OpMode {
         // Trigger value on Logitech gamepad
         double trig = Range.clip(gamepad1.right_trigger, 0.0, 1.0);
 
+
+        if (gamepad1.dpad_left) {
+
+            leftHolderServo.setPosition(0.48);
+        }
+        else if (gamepad1.dpad_down){
+
+            leftHolderServo.setPosition(0.53);
+        }
+        if (gamepad1.dpad_right) {
+
+            rightHolderServo.setPosition(0.5);
+        }
+        else if (gamepad1.dpad_up){
+            rightHolderServo.setPosition(0.55);
+
+        }
+        // button for intake
+        if (gamepad1.a) {
+        intakeMotor.setPower(-01.0);
+
+
+        }
+        else {
+            intakeMotor.setPower(0.0);
+
+        }
         // Determine zones for telemetry
         String zone;
-        if (trig >= FIRE_THRESHOLD) zone = "FIRE ZONE";
+         if (trig >= FIRE_THRESHOLD) zone = "FIRE ZONE";
         else if (trig >= SPIN_THRESHOLD) zone = "SPIN ZONE";
         else zone = "IDLE ZONE";
 
