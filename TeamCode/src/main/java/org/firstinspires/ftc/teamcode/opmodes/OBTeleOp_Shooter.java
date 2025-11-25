@@ -75,6 +75,8 @@ public class OBTeleOp_Shooter extends OpMode {
         shooterRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
         tipperServo.setPosition(SERVO_REST_POS);
+        leftHolderServo.setPosition(0.50);
+        rightHolderServo.setPosition(0.50);
 
         telemetry.addLine("OB TeleOp + Shooter (Trigger Sequencer) ready");
         telemetry.addLine("Right trigger: slight press spins up, full press fires");
@@ -85,7 +87,7 @@ public class OBTeleOp_Shooter extends OpMode {
     public void loop() {
         // Normal drive on gamepad1; slow mode example kept as is
         boolean squaredInputs = true;
-        double speedMult = gamepad1.left_bumper ? 0.55 : 0.55;
+        double speedMult = gamepad1.left_bumper ? 0.55 : 1.0;
         robot.driveFromGamepad(gamepad1, squaredInputs, speedMult);
 
         // Trigger value on Logitech gamepad
@@ -93,34 +95,24 @@ public class OBTeleOp_Shooter extends OpMode {
 
 
         if (gamepad1.dpad_left) {
-
             leftHolderServo.setPosition(0.48);
-        }
-        else if (gamepad1.dpad_down){
-
+        } else if (gamepad1.dpad_down) {
             leftHolderServo.setPosition(0.53);
         }
         if (gamepad1.dpad_right) {
-
             rightHolderServo.setPosition(0.5);
-        }
-        else if (gamepad1.dpad_up){
+        } else if (gamepad1.dpad_up) {
             rightHolderServo.setPosition(0.55);
-
         }
         // button for intake
         if (gamepad1.a) {
-        intakeMotor.setPower(-01.0);
-
-
-        }
-        else {
+            intakeMotor.setPower(-1.0);
+        } else {
             intakeMotor.setPower(0.0);
-
         }
         // Determine zones for telemetry
         String zone;
-         if (trig >= FIRE_THRESHOLD) zone = "FIRE ZONE";
+        if (trig >= FIRE_THRESHOLD) zone = "FIRE ZONE";
         else if (trig >= SPIN_THRESHOLD) zone = "SPIN ZONE";
         else zone = "IDLE ZONE";
 
@@ -199,6 +191,7 @@ public class OBTeleOp_Shooter extends OpMode {
         if (shooterLeft != null)  shooterLeft.setPower(0);
         if (shooterRight != null) shooterRight.setPower(0);
         if (tipperServo != null)  tipperServo.setPosition(SERVO_REST_POS);
+        if (intakeMotor != null)  intakeMotor.setPower(0);
         robot.setDriverPowerZERO();
     }
 

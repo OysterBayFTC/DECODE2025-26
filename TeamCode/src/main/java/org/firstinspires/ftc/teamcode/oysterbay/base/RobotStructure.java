@@ -105,7 +105,8 @@ public class RobotStructure {
         // Normalize so the max magnitude is 1.0
         double max = Math.max(1.0, Math.max(Math.max(Math.abs(fl), Math.abs(fr)),
                 Math.max(Math.abs(bl), Math.abs(br))));
-        setDriverMotorPower(fl / max, fr / max, br / max, bl / max);
+        // Order parameters as (frontRight, frontLeft, backRight, backLeft)
+        setDriverMotorPower(fr / max, fl / max, br / max, bl / max);
     }
 
     private static double applyDeadband(double v, double d) {
