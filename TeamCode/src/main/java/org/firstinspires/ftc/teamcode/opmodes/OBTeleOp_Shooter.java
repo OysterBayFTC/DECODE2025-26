@@ -18,7 +18,7 @@ public class OBTeleOp_Shooter extends OpMode {
 
     private DcMotorEx shooterLeft;
     private DcMotorEx shooterRight;
-    private DcMotorEx intakeMotor;     // not used by trigger sequence, left available if you want manual control elsewhere
+    private DcMotorEx intakeMotor;
     private Servo tipperServo;
 
     private Servo leftHolderServo; // servo for sorting
@@ -110,9 +110,10 @@ public class OBTeleOp_Shooter extends OpMode {
         }
         // button for intake
         if (gamepad1.a) {
-        intakeMotor.setPower(-01.0);
-
-
+        intakeMotor.setPower(-1.0);
+            if (!gamepad1.a) {
+                intakeMotor.setPower(0);
+            }
         }
         else {
             intakeMotor.setPower(0.0);
