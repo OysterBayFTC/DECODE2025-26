@@ -1,4 +1,3 @@
-// TeamCode/src/main/java/org/firstinspires/ftc/teamcode/oysterbay/base/RobotStructure.java
 package org.firstinspires.ftc.teamcode.oysterbay.base;
 
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -16,15 +15,14 @@ import com.qualcomm.robotcore.util.Range;
  * Motor names expected in RC config:
  *  - "motorFrontRight", "motorFrontLeft", "motorBackRight", "motorBackLeft"
  */
-public class RobotStructure {
+public class autoStruct {
 
     private DcMotorEx motorFrontRight;
     private DcMotorEx motorFrontLeft;
-    private DcMotorEx motorBackRight;
-    private DcMotorEx motorBackLeft;
-
     private CRServo servoTrapLeft;
     private CRServo servoTrapRight;
+    private DcMotorEx motorBackRight;
+    private DcMotorEx motorBackLeft;
 
     // --- Tunables ---
     private static final double DEADBAND = 0.05;  // stick deadzone
@@ -38,6 +36,8 @@ public class RobotStructure {
 
         servoTrapRight = hardwareMap.get(CRServo.class, "servoTrapRight");
         servoTrapLeft  = hardwareMap.get(CRServo.class, "servoTrapLeft");
+
+
 
         // Make +power = forward for all wheels. Adjust if needed for your build.
         motorFrontRight.setDirection(DcMotorSimple.Direction.REVERSE);
@@ -58,9 +58,9 @@ public class RobotStructure {
      */
     public void driveFromGamepad(Gamepad gp, boolean squaredInputs, double speedMult) {
         // FTC convention: +y forward, +x right, +r CCW
-        double y =  gp.left_stick_y;   // invert for typical forward on push
-        double x =  -gp.left_stick_x;   // strafe
-        double r =  -gp.right_stick_x;  // rotate
+        double y = -gp.left_stick_y;   // invert for typical forward on push
+        double x =  gp.left_stick_x;
+        double r =  gp.right_stick_x;
 
         // Deadband
         y = applyDeadband(y, DEADBAND);
@@ -111,13 +111,9 @@ public class RobotStructure {
         double br = y + x - r;
 
         // Normalize so the max magnitude is 1.0
-        double max = Math.max(1.0,
-                Math.max(Math.max(Math.abs(fl), Math.abs(fr)),
-                        Math.max(Math.abs(bl), Math.abs(br))));
-
-        // IMPORTANT: map computed wheel powers to the correct motors.
-        // setDriverMotorPower(frontRight, frontLeft, backRight, backLeft)
-        setDriverMotorPower(fr / max, fl / max, br / max, bl / max);
+        double max = Math.max(1.0, Math.max(Math.max(Math.abs(fl), Math.abs(fr)),
+                Math.max(Math.abs(bl), Math.abs(br))));
+        setDriverMotorPower(fl / max, fr / max, br / max, bl / max);
     }
 
     private static double applyDeadband(double v, double d) {
