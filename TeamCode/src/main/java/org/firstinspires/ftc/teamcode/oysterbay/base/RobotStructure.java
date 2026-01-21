@@ -1,4 +1,4 @@
-// TeamCode/src/main/java/org/firstinspires/ftc/teamcode/oysterbay/base/RobotStructure.java
+// File: TeamCode/src/main/java/org/firstinspires/ftc/teamcode/oysterbay/base/RobotStructure.java
 package org.firstinspires.ftc.teamcode.oysterbay.base;
 
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -30,6 +30,9 @@ public class RobotStructure {
     private static final double DEADBAND = 0.05;  // stick deadzone
     private static final double EXPO_DRIVE = 2.0; // >1 softens low-end; 1.0 = linear
 
+    // +20% turning speed
+    private static final double TURN_BOOST = 1.20;
+
     public void init(HardwareMap hardwareMap) {
         motorFrontRight = hardwareMap.get(DcMotorEx.class, "motorFrontRight");
         motorFrontLeft  = hardwareMap.get(DcMotorEx.class, "motorFrontLeft");
@@ -58,9 +61,12 @@ public class RobotStructure {
      */
     public void driveFromGamepad(Gamepad gp, boolean squaredInputs, double speedMult) {
         // FTC convention: +y forward, +x right, +r CCW
-        double y =  gp.left_stick_y;   // invert for typical forward on push
-        double x =  -gp.left_stick_x;   // strafe
-        double r =  -gp.right_stick_x;  // rotate
+
+        // CHANGE #1: flip front/back driving
+        double y = -gp.left_stick_y;
+
+        double x = -gp.left_stick_x;   // strafe
+        double r = -gp.right_stick_x;  // rotate
 
         // Deadband
         y = applyDeadband(y, DEADBAND);
@@ -73,6 +79,9 @@ public class RobotStructure {
             x = expo(x, EXPO_DRIVE);
             r = expo(r, EXPO_DRIVE);
         }
+
+        // CHANGE #3: increase turn speed by +20%
+        r *= TURN_BOOST;
 
         // Apply speed scale
         y *= speedMult;

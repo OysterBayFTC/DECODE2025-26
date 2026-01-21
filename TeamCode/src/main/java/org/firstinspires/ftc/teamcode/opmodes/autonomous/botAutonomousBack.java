@@ -1,15 +1,17 @@
 /*
-Two things you may need to flip after the first test:
+Second autonomous version (Backwards start position):
 
-1. If the robot strafes away from the Y target, change
-PINPOINT_Y_INCREASES_WHEN_LEFT to the opposite value.
+- Robot stays STILL at the start
+- Reads AprilTag first and locks the plan
+- Immediately shoots at 2400 RPM
+- Then drives "forward" for 1 second at the end
 
-2. If the pickup motor spits out instead of intaking, reverse
-intakeMotor direction (the commented line in init).
- */
-// File: TeamCode/src/main/java/org/firstinspires/ftc/teamcode/opmodes/autonomous/botAutonomous.java
-// 1820 Auton Regular
-// 2400 Back corner
+IMPORTANT:
+This version assumes the robot is oriented BACKWARDS on the field.
+So to move FORWARD at the end, we drive in the OPPOSITE direction compared to the reference program.
+*/
+
+// File: TeamCode/src/main/java/org/firstinspires/ftc/teamcode/opmodes/autonomous/botAutonomous_BackStart2400.java
 package org.firstinspires.ftc.teamcode.opmodes.autonomous;
 
 import android.util.Size;
@@ -41,8 +43,8 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-@Autonomous(name = "botAutonomous", group = "OB")
-public class botAutonomous extends LinearOpMode {
+@Autonomous(name = "botAutonomous BackStart 2400", group = "OB")
+public class botAutonomousBack extends LinearOpMode {
 
     // =========================
     // Camera / AprilTag
@@ -66,37 +68,32 @@ public class botAutonomous extends LinearOpMode {
     private static final Float DECIMATION = 2.0f;
 
     // =========================
-    // Shooter (setVelocity) NEW
+    // Shooter (setVelocity)
     // =========================
-    // Your tuned target RPM for autonomous
-    private static final double SHOOTER_TARGET_RPM = 1800.0;
+    // NEW: 2400 RPM for this BackStart auto
+    private static final double SHOOTER_TARGET_RPM = 2300.0;
 
-    // goBILDA Yellow Jacket motor encoder is commonly 28 ticks/rev at the MOTOR shaft.
-    // If RPM telemetry looks wrong, verify this for your exact motor/encoder.
     private static final double SHOOTER_TICKS_PER_REV = 28.0;
 
-    // Sign convention (same as your working TeleOp/Velocity logic):
-    // Both motors set Direction.FORWARD, then command RIGHT motor negative velocity so wheels spin inward.
     private static final int LEFT_CMD_SIGN  = +1;
     private static final int RIGHT_CMD_SIGN = -1;
 
-    // Trim multipliers (start at 1.00 / 1.00, tune if one side consistently runs high/low)
-    // Example: if LEFT reads ~+200 RPM high at a 2400 target, try LEFT_TRIM = 0.92–0.96.
     private static final double LEFT_TRIM  = 1.00;
     private static final double RIGHT_TRIM = 1.00;
 
-    // Spin-up gating before firing (prevents shooting before wheels stabilize)
     private static final double AT_SPEED_TOL_RPM = 150.0;
-    private static final double SPINUP_TIMEOUT_SEC = 2.0; // fail-safe so you still fire if sensor noise
+    private static final double SPINUP_TIMEOUT_SEC = 2.0;
 
     // =========================
-    // Drive + scan behavior
+    // Scan behavior
     // =========================
-    private static final double DRIVE_TOTAL_SECONDS = 2.5;
-    private static final double PREMOVE_SECONDS = 1.0;
     private static final double STATIONARY_SCAN_SECONDS = 0.9;
-    private static final double SCAN_DRIVE_POWER = 0.30;
-    private static final double POST_DECISION_PAUSE_SEC = 0.1;
+
+    // =========================
+    // End drive behavior (ONLY wheel use after shooting)
+    // =========================
+    private static final double END_DRIVE_SECONDS = 1.0;
+    private static final double END_DRIVE_POWER = 0.30;
 
     // =========================
     // Tag IDs you CARE about
@@ -106,32 +103,8 @@ public class botAutonomous extends LinearOpMode {
     private static final int MIN_SEEN_FRAMES = 2;
 
     // =========================
-    // Positions (mm) (kept)
+    // Motors / Servos
     // =========================
-    private static final double BALL_PICK_UP_X1 = 125.0;
-    private static final double BALL_PICK_UP_Y1 = 125.0;
-
-    private static final double SHOOTING_X = 125.0;
-    private static final double SHOOTING_Y = 125.0;
-
-    // =========================
-    // Pickup constants (kept)
-    // =========================
-    private static final double PICKUP_DRIVE_POWER = 0.30;
-    private static final double PICKUP_MOTOR_POWER = 1.00;
-    private static final double PICKUP_DURATION_SEC = 3.00;
-
-    // =========================
-    // Move-to constants (kept)
-    // =========================
-    private static final double POS_TOL_MM = 15.0;
-    private static final double MOVE_TIMEOUT_SEC = 4.0;
-
-    private static final double MOVE_FWD_POWER = 0.35;
-    private static final double MOVE_STRAFE_POWER = 0.35;
-
-    private static final boolean PINPOINT_Y_INCREASES_WHEN_LEFT = true;
-
     private DcMotorEx shooterLeft;
     private DcMotorEx shooterRight;
 
@@ -142,9 +115,7 @@ public class botAutonomous extends LinearOpMode {
     private Servo leftHolderServo;
     private Servo rightHolderServo;
 
-    // =========================
     // Drivetrain
-    // =========================
     private DcMotorEx motorFrontRight;
     private DcMotorEx motorFrontLeft;
     private DcMotorEx motorBackRight;
@@ -154,7 +125,7 @@ public class botAutonomous extends LinearOpMode {
     private DcMotorEx intakeMotor;
 
     // =========================
-    // Pinpoint Odometry
+    // Pinpoint Odometry (kept)
     // =========================
     private GoBildaPinpointDriver pinpoint;
     private static final String PINPOINT_NAME = "pinpoint";
@@ -166,10 +137,6 @@ public class botAutonomous extends LinearOpMode {
             GoBildaPinpointDriver.EncoderDirection.FORWARD;
     private static final GoBildaPinpointDriver.EncoderDirection Y_ENCODER_DIR =
             GoBildaPinpointDriver.EncoderDirection.FORWARD;
-
-    // Optional TeleOp speed cap (off by default)
-    private static final boolean USE_TELEOP_SPEED_MULT = false;
-    private static final double TELEOP_SPEED_MULT = 0.55;
 
     @Override
     public void runOpMode() {
@@ -196,24 +163,22 @@ public class botAutonomous extends LinearOpMode {
         leftHolderServo  = hardwareMap.get(Servo.class, "leftHolderServo");
         rightHolderServo = hardwareMap.get(Servo.class, "rightHolderServo");
 
-        // Directions (drivetrain kept exactly as your working version)
+        // Drivetrain directions (kept EXACTLY like your reference auto)
         motorFrontLeft.setDirection(DcMotorSimple.Direction.REVERSE);
         motorBackLeft.setDirection(DcMotorSimple.Direction.REVERSE);
 
         motorFrontRight.setDirection(DcMotorSimple.Direction.FORWARD);
         motorBackRight.setDirection(DcMotorSimple.Direction.FORWARD);
 
-        // Shooter directions (UPDATED for velocity logic)
-        // Both FORWARD; we command RIGHT negative via RIGHT_CMD_SIGN.
-        shooterLeft.setDirection(DcMotorSimple.Direction.FORWARD);
-        shooterRight.setDirection(DcMotorSimple.Direction.FORWARD);
-
         motorFrontLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         motorFrontRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         motorBackLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         motorBackRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        // Shooter encoder + velocity mode (NEW)
+        // Shooter directions for velocity logic
+        shooterLeft.setDirection(DcMotorSimple.Direction.FORWARD);
+        shooterRight.setDirection(DcMotorSimple.Direction.FORWARD);
+
         shooterLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         shooterRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         shooterLeft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
@@ -224,27 +189,21 @@ public class botAutonomous extends LinearOpMode {
 
         intakeMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         intakeMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-
-        // If intake runs backwards, uncomment:
-        // intakeMotor.setDirection(DcMotorSimple.Direction.REVERSE);
+        // intakeMotor.setDirection(DcMotorSimple.Direction.REVERSE); // uncomment if needed
 
         tipperServo.setPosition(SERVO_REST_POS);
         leftHolderServo.setPosition(0.1);
         rightHolderServo.setPosition(0.40);
 
         // =========================
-        // Pinpoint init
+        // Pinpoint init (kept)
         // =========================
         pinpoint = hardwareMap.get(GoBildaPinpointDriver.class, PINPOINT_NAME);
-
         pinpoint.setOffsets(PINPOINT_X_OFFSET_MM, PINPOINT_Y_OFFSET_MM);
         pinpoint.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD);
         pinpoint.setEncoderDirections(X_ENCODER_DIR, Y_ENCODER_DIR);
-
         pinpoint.resetPosAndIMU();
         sleep(350);
-
-        // Prime first read
         pinpoint.update();
 
         // =========================
@@ -279,61 +238,36 @@ public class botAutonomous extends LinearOpMode {
             }
         }
 
-        // Dashboard streaming + merged telemetry
         FtcDashboard dash = FtcDashboard.getInstance();
         dash.startCameraStream(visionPortal, 30);
         telemetry = new MultipleTelemetry(telemetry, dash.getTelemetry());
 
         telemetry.addLine("Init complete. Press START.");
-        telemetry.addData("Pinpoint Status", String.valueOf(pinpoint.getDeviceStatus()));
         telemetry.addData("Shooter Target RPM", "%.0f", SHOOTER_TARGET_RPM);
-        telemetry.addData("Shooter Trim L/R", "%.3f / %.3f", LEFT_TRIM, RIGHT_TRIM);
         telemetry.update();
 
         waitForStart();
         if (isStopRequested()) return;
 
         // =========================
-        // START OF AUTO
+        // AUTO START:
+        // Scan first (robot stays still), decide plan, then SHOOT, then move forward 1 sec.
         // =========================
+        stopDrive();
         camServo.setPosition(CAM_LEFT_POS);
 
-        // We will decide tag while STOPPED (after moving a little), then finish the move, then shoot.
         int seenTag1 = 0;
         int seenTag2 = 0;
 
-        // These Z values are OPTIONAL (only if ftcPose exists). We do NOT require ftcPose.
         double bestZ1 = Double.POSITIVE_INFINITY;
         double bestZ2 = Double.POSITIVE_INFINITY;
 
         // --------
-        // Phase A: drive forward for PREMOVE_SECONDS
-        // --------
-        setAllDrivePower(SCAN_DRIVE_POWER);
-        ElapsedTime tA = new ElapsedTime();
-        tA.reset();
-        while (opModeIsActive() && tA.seconds() < PREMOVE_SECONDS) {
-            pinpoint.update();
-            Pose2D pose = pinpoint.getPosition();
-
-            telemetry.addData("Phase", "Drive (pre-scan)");
-            telemetry.addData("t", "%.2f / %.2f", tA.seconds(), PREMOVE_SECONDS);
-            if (pose != null) {
-                telemetry.addData("Odo X (mm)", "%.1f", pose.getX(DistanceUnit.MM));
-                telemetry.addData("Odo Y (mm)", "%.1f", pose.getY(DistanceUnit.MM));
-                telemetry.addData("Heading (deg)", "%.1f", pose.getHeading(AngleUnit.DEGREES));
-            }
-            telemetry.update();
-            idle();
-        }
-        stopDrive();
-
-        // --------
-        // Phase B: STOPPED scan for STATIONARY_SCAN_SECONDS
-        // FIX: Count detections by ID EVEN if ftcPose is null.
+        // Phase A: STOPPED scan only
         // --------
         ElapsedTime scanTimer = new ElapsedTime();
         scanTimer.reset();
+
         while (opModeIsActive() && scanTimer.seconds() < STATIONARY_SCAN_SECONDS) {
             pinpoint.update();
             Pose2D pose = pinpoint.getPosition();
@@ -341,13 +275,9 @@ public class botAutonomous extends LinearOpMode {
             List<AprilTagDetection> dets = tagProc.getDetections();
             int detCount = (dets == null) ? 0 : dets.size();
 
-            boolean saw22ThisLoop = false;
-
             if (dets != null) {
                 for (AprilTagDetection d : dets) {
                     if (d == null) continue;
-
-                    if (d.id == TAG2_ID) saw22ThisLoop = true;
 
                     if (d.id == TAG1_ID) {
                         seenTag1++;
@@ -361,61 +291,30 @@ public class botAutonomous extends LinearOpMode {
 
             telemetry.addData("Phase", "STOPPED Scan");
             telemetry.addData("Scan t", "%.2f / %.2f", scanTimer.seconds(), STATIONARY_SCAN_SECONDS);
-            telemetry.addData("Detections this loop", detCount);
-            telemetry.addData("Saw 22 this loop?", saw22ThisLoop);
-
+            telemetry.addData("Detections", detCount);
             telemetry.addData("Seen Tag1 (21)", seenTag1);
             telemetry.addData("Seen Tag2 (22)", seenTag2);
-
-            telemetry.addData("BestZ1 (m)", bestZ1 == Double.POSITIVE_INFINITY ? "n/a" : String.format("%.3f", bestZ1));
-            telemetry.addData("BestZ2 (m)", bestZ2 == Double.POSITIVE_INFINITY ? "n/a" : String.format("%.3f", bestZ2));
 
             if (pose != null) {
                 telemetry.addData("Odo X (mm)", "%.1f", pose.getX(DistanceUnit.MM));
                 telemetry.addData("Odo Y (mm)", "%.1f", pose.getY(DistanceUnit.MM));
+                telemetry.addData("Heading (deg)", "%.1f", pose.getHeading(AngleUnit.DEGREES));
             }
 
             telemetry.update();
             idle();
         }
 
-        // Lock the decision NOW (before moving again)
+        // Lock the decision NOW
         Integer chosenTagId = chooseBetweenTwoTags(seenTag1, seenTag2, bestZ1, bestZ2);
 
         telemetry.addData("Decision (locked)", chosenTagId == null ? "TAG3(default)" : (chosenTagId == TAG1_ID ? "TAG1" : "TAG2"));
         telemetry.update();
 
         // --------
-        // Phase C: finish remaining forward drive time so distance matches old behavior (2.5s total)
+        // Phase B: Immediately execute shooting plan at 2400 RPM
         // --------
-        double remainingDrive = Math.max(0.0, DRIVE_TOTAL_SECONDS - PREMOVE_SECONDS);
-        setAllDrivePower(SCAN_DRIVE_POWER);
-
-        ElapsedTime tC = new ElapsedTime();
-        tC.reset();
-        while (opModeIsActive() && tC.seconds() < remainingDrive) {
-            pinpoint.update();
-            Pose2D pose = pinpoint.getPosition();
-
-            telemetry.addData("Phase", "Drive (post-scan)");
-            telemetry.addData("t", "%.2f / %.2f", tC.seconds(), remainingDrive);
-            telemetry.addData("Decision (locked)", chosenTagId == null ? "TAG3(default)" : (chosenTagId == TAG1_ID ? "TAG1" : "TAG2"));
-            if (pose != null) {
-                telemetry.addData("Odo X (mm)", "%.1f", pose.getX(DistanceUnit.MM));
-                telemetry.addData("Odo Y (mm)", "%.1f", pose.getY(DistanceUnit.MM));
-            }
-            telemetry.update();
-            idle();
-        }
-        stopDrive();
-
-        sleep((long) (POST_DECISION_PAUSE_SEC * 1000));
-
-        // --------
-        // Phase D: execute plan AFTER the movement
-        // --------
-        telemetry.addLine("Executing plan...");
-        telemetry.addData("ChosenPlan", chosenTagId == null ? "TAG3 (default)" : (chosenTagId == TAG1_ID ? "TAG1" : "TAG2"));
+        telemetry.addLine("Shooting NOW (2400 RPM)...");
         telemetry.update();
 
         if (chosenTagId == null) {
@@ -428,7 +327,19 @@ public class botAutonomous extends LinearOpMode {
             doTag3Plan();
         }
 
+        // Stop shooter after plan
         setShooterRpm(0.0);
+
+        // --------
+        // Phase C: Move FORWARD for 1 second (robot is backwards, so opposite direction)
+        // ONLY wheel movement in this entire auto.
+        // --------
+        telemetry.addLine("End move: forward 1 second (backwards-oriented robot)");
+        telemetry.update();
+
+        driveForward_BackStart(END_DRIVE_POWER);
+        sleep((long) (END_DRIVE_SECONDS * 1000));
+        stopDrive();
 
         if (visionPortal != null) {
             visionPortal.close();
@@ -436,15 +347,10 @@ public class botAutonomous extends LinearOpMode {
     }
 
     /**
-     * Returns:
-     *  - TAG1_ID if Tag1 is confidently seen
-     *  - TAG2_ID if Tag2 is confidently seen
-     *  - null if neither is confidently seen (fallback to Tag3 default)
-     *
-     * Decision rule:
-     *  1) must be seen >= MIN_SEEN_FRAMES
-     *  2) if both qualify: pick higher "seen" count; tie-break by closer Z IF available
-     *  3) if tie and no pose: choose TAG2 (so it doesn't "fall into default")
+     * Decide plan:
+     * - TAG1_ID if Tag1 seen confidently
+     * - TAG2_ID if Tag2 seen confidently
+     * - null if neither is confidently seen (fallback Tag3)
      */
     private Integer chooseBetweenTwoTags(int seen1, int seen2, double z1, double z2) {
         boolean ok1 = seen1 >= MIN_SEEN_FRAMES;
@@ -463,125 +369,39 @@ public class botAutonomous extends LinearOpMode {
             return (z1 <= z2) ? TAG1_ID : TAG2_ID;
         }
 
-        // Deterministic tie-break when pose isn't available:
+        // Deterministic tie-break if no pose
         return TAG2_ID;
     }
 
     // =========================
-    // PICKUP: drive + intake at same time (time-based) (kept)
+    // Wheel helpers
     // =========================
-    private void pickUp(double drivePower, double pickupPower, double durationSec) {
-        setAllDrivePower(drivePower);
-        intakeMotor.setPower(pickupPower);
-
-        ElapsedTime t = new ElapsedTime();
-        t.reset();
-
-        while (opModeIsActive() && t.seconds() < durationSec) {
-            idle();
-        }
-
-        stopDrive();
-        intakeMotor.setPower(0);
-    }
-
-    private void pickUp() {
-        pickUp(PICKUP_DRIVE_POWER, PICKUP_MOTOR_POWER, PICKUP_DURATION_SEC);
-    }
-
-    // =========================
-    // MOVE TO POSITION: simple X then Y using Pinpoint (kept)
-    // =========================
-    private void moveToPosition(double targetXmm, double targetYmm) {
-        ElapsedTime timeout = new ElapsedTime();
-        timeout.reset();
-
-        while (opModeIsActive() && timeout.seconds() < MOVE_TIMEOUT_SEC) {
-            pinpoint.update();
-            Pose2D pose = pinpoint.getPosition();
-            if (pose == null) {
-                telemetry.addLine("Pose is null");
-                telemetry.update();
-                idle();
-                continue;
-            }
-
-            double x = pose.getX(DistanceUnit.MM);
-            double y = pose.getY(DistanceUnit.MM);
-
-            double xErr = targetXmm - x;
-            double yErr = targetYmm - y;
-
-            boolean atX = Math.abs(xErr) <= POS_TOL_MM;
-            boolean atY = Math.abs(yErr) <= POS_TOL_MM;
-
-            if (atX && atY) break;
-
-            double forward = 0.0;
-            double strafe = 0.0;
-
-            if (!atX) {
-                forward = (xErr > 0) ? MOVE_FWD_POWER : -MOVE_FWD_POWER;
-            } else if (!atY) {
-                double desired = (yErr > 0) ? MOVE_STRAFE_POWER : -MOVE_STRAFE_POWER;
-                strafe = PINPOINT_Y_INCREASES_WHEN_LEFT ? desired : -desired;
-            }
-
-            driveMecanum(forward, strafe, 0.0);
-
-            telemetry.addData("TargetX", "%.1f", targetXmm);
-            telemetry.addData("TargetY", "%.1f", targetYmm);
-            telemetry.addData("X", "%.1f", x);
-            telemetry.addData("Y", "%.1f", y);
-            telemetry.addData("xErr", "%.1f", xErr);
-            telemetry.addData("yErr", "%.1f", yErr);
-            telemetry.update();
-            idle();
-        }
-
-        driveMecanum(0, 0, 0);
-    }
-
-    // =========================
-    // DRIVETRAIN HELPERS (kept exactly)
-    // =========================
-    private void setAllDrivePower(double pwr) {
-        motorFrontLeft.setPower(-pwr);
-        motorFrontRight.setPower(-pwr);
-        motorBackLeft.setPower(-pwr);
-        motorBackRight.setPower(-pwr);
-    }
-
     private void stopDrive() {
-        setAllDrivePower(0.0);
+        motorFrontLeft.setPower(0.0);
+        motorFrontRight.setPower(0.0);
+        motorBackLeft.setPower(0.0);
+        motorBackRight.setPower(0.0);
     }
 
-    // forward, strafe, turn in [-1..1]
-    private void driveMecanum(double forward, double strafe, double turn) {
-        if (USE_TELEOP_SPEED_MULT) {
-            forward *= TELEOP_SPEED_MULT;
-            strafe  *= TELEOP_SPEED_MULT;
-            turn    *= TELEOP_SPEED_MULT;
-        }
-
-        double fl = forward + strafe + turn;
-        double fr = forward - strafe - turn;
-        double bl = forward - strafe + turn;
-        double br = forward + strafe - turn;
-
-        double max = Math.max(1.0,
-                Math.max(Math.abs(fl),
-                        Math.max(Math.abs(fr), Math.max(Math.abs(bl), Math.abs(br)))));
-
-        motorFrontLeft.setPower(fl / max);
-        motorFrontRight.setPower(fr / max);
-        motorBackLeft.setPower(bl / max);
-        motorBackRight.setPower(br / max);
-
+    /**
+     * IMPORTANT:
+     * Your reference auto uses NEGATIVE power in setAllDrivePower(pwr)
+     * to move forward in that specific field orientation.
+     *
+     * This back-start auto wants "forward" to be the OPPOSITE direction,
+     * since the robot is oriented backwards.
+     *
+     * So here we drive the opposite sign.
+     */
+    private void driveForward_BackStart(double pwr) {
+        motorFrontLeft.setPower(+pwr);
+        motorFrontRight.setPower(+pwr);
+        motorBackLeft.setPower(+pwr);
+        motorBackRight.setPower(+pwr);
     }
 
     // =========================
-    // Trap / shooter routines (UPDATED shooter to setVelocity)
+    // Trap / shooter routines
     // =========================
     private void runTrapServos() {
         servoTrapLeft.setPower(-0.6);
@@ -598,20 +418,16 @@ public class botAutonomous extends LinearOpMode {
     }
 
     /**
-     * Spin shooter to target RPM (with trim), wait until at speed (or timeout), then fire tipper.
-     * This replaces your old setPower-based shootBalls().
+     * Spin shooter to target RPM (2400), wait until at speed (or timeout), then fire tipper.
      */
     private void shootBalls() {
-        // 1) Spin up
         setShooterRpm(SHOOTER_TARGET_RPM);
 
-        // 2) Wait until at speed or timeout
         ElapsedTime spin = new ElapsedTime();
         spin.reset();
         while (opModeIsActive() && spin.seconds() < SPINUP_TIMEOUT_SEC) {
             double lRpm = getShooterRpmShootPositive(shooterLeft, LEFT_CMD_SIGN);
             double rRpm = getShooterRpmShootPositive(shooterRight, RIGHT_CMD_SIGN);
-
             boolean atSpeed = shooterAtSpeed(SHOOTER_TARGET_RPM, AT_SPEED_TOL_RPM);
 
             telemetry.addData("Shooter Target", "%.0f", SHOOTER_TARGET_RPM);
@@ -624,19 +440,16 @@ public class botAutonomous extends LinearOpMode {
             idle();
         }
 
-        // 3) Fire
         tipperServo.setPosition(SERVO_FIRE_POS);
-        sleep(350); // keep similar to your old firing window (adjust if needed)
+        sleep(350);
         tipperServo.setPosition(SERVO_REST_POS);
 
-        // 4) Spin down (or keep spinning if you want faster multi-shot sequences)
         setShooterRpm(0.0);
-        sleep(150); // small settle
+        sleep(150);
     }
 
     private void shootRight() {
         rightHolderServo.setPosition(0);
-        // .45
         sleep(600);
         runTrapServos();
         shootBalls();
@@ -644,7 +457,6 @@ public class botAutonomous extends LinearOpMode {
 
     private void shootLeft() {
         leftHolderServo.setPosition(.53);
-        // .22
         sleep(600);
         runTrapServos();
         shootBalls();
@@ -683,13 +495,11 @@ public class botAutonomous extends LinearOpMode {
     }
 
     // =========================
-    // Shooter velocity helpers (NEW)
+    // Shooter velocity helpers
     // =========================
     private void setShooterRpm(double rpm) {
-        // Convert RPM -> ticks/sec
         double tps = rpmToTicksPerSec(rpm);
 
-        // Apply sign + trim
         double cmdLTps = LEFT_CMD_SIGN * tps * LEFT_TRIM;
         double cmdRTps = RIGHT_CMD_SIGN * tps * RIGHT_TRIM;
 
@@ -707,8 +517,8 @@ public class botAutonomous extends LinearOpMode {
     }
 
     private double getShooterRpmShootPositive(DcMotorEx m, int cmdSign) {
-        double tpsRaw = m.getVelocity();       // ticks/sec raw
-        double tpsShootPos = tpsRaw * cmdSign; // flip so "shooting direction" is positive
+        double tpsRaw = m.getVelocity();
+        double tpsShootPos = tpsRaw * cmdSign;
         return ticksPerSecToRpm(tpsShootPos);
     }
 
@@ -727,20 +537,17 @@ public class botAutonomous extends LinearOpMode {
         telemetry.addLine("Running TAG 1 plan.");
         telemetry.update();
         shootingOrder1();
-        driveMecanum(0.0, 0.35, 0.0); sleep(700); driveMecanum(0.0, 0.0, 0.0);
     }
 
     private void doTag2Plan() {
         telemetry.addLine("Running TAG 2 plan.");
         telemetry.update();
         shootingOrder2();
-        driveMecanum(0.0, 0.35, 0.0); sleep(700); driveMecanum(0.0, 0.0, 0.0);
     }
 
     private void doTag3Plan() {
         telemetry.addLine("Running TAG 3 DEFAULT plan.");
         telemetry.update();
         shootingOrder3();
-        driveMecanum(0.0, 0.35, 0.0); sleep(700); driveMecanum(0.0, 0.0, 0.0);
     }
 }
