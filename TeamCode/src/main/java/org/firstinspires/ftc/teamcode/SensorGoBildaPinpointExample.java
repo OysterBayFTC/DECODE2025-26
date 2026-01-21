@@ -91,7 +91,8 @@
 //        Set the kind of pods used by your robot. If you're using goBILDA odometry pods, select either
 //        the goBILDA_SWINGARM_POD, or the goBILDA_4_BAR_POD.
 //        If you're using another kind of odometry pod, uncomment setEncoderResolution and input the
-//        number of ticks per mm of your odometry pod.
+//        number of
+//        ticks per mm of your odometry pod.
 //         */
 //        odo.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD);
 //        //odo.setEncoderResolution(13.26291192);

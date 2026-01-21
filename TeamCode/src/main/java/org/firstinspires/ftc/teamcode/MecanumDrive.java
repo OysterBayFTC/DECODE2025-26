@@ -59,13 +59,13 @@ public class MecanumDrive {
         // TODO: fill in these values based on
         //   see https://ftc-docs.firstinspires.org/en/latest/programming_resources/imu/imu.html?highlight=imu#physical-hub-mounting
         public RevHubOrientationOnRobot.LogoFacingDirection logoFacingDirection =
-                RevHubOrientationOnRobot.LogoFacingDirection.FORWARD;
+                RevHubOrientationOnRobot.LogoFacingDirection.BACKWARD;
         public RevHubOrientationOnRobot.UsbFacingDirection usbFacingDirection =
-                RevHubOrientationOnRobot.UsbFacingDirection.RIGHT;
+                RevHubOrientationOnRobot.UsbFacingDirection.UP;
 
         // drive model parameters
         public double inPerTick = 1; // SparkFun OTOS Note: you can probably leave this at 1
-        public double lateralInPerTick = 0.7523732311430573; //0.736834497757;// OTOS: 0.872882;
+        public double lateralInPerTick = 0.7523732311430573; //0.736834497 757;// OTOS: 0.872882;
         public double trackWidthTicks = 12.698491025795713; //12.791; // otos 12.66;
 
         // feedforward parameters (in tick units)
@@ -229,8 +229,15 @@ public class MecanumDrive {
         rightFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         // TODO: reverse motor directions if needed
+        // old code
+        /*
         leftFront.setDirection(DcMotorSimple.Direction.REVERSE);
         leftBack.setDirection(DcMotorSimple.Direction.REVERSE);
+
+         */
+        rightFront.setDirection((DcMotorSimple.Direction.REVERSE));
+        rightBack.setDirection((DcMotorSimple.Direction.REVERSE));
+
 
         // TODO: make sure your config has an IMU with this name (can be BNO or BHI)
         //   see https://ftc-docs.firstinspires.org/en/latest/hardware_and_software_configuration/configuring/index.html
