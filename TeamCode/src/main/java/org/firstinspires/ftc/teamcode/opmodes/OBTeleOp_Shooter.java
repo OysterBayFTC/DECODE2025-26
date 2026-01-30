@@ -116,6 +116,12 @@ public class OBTeleOp_Shooter extends OpMode {
     private final ElapsedTime spinupTimer = new ElapsedTime();
     private boolean firedThisPress = false;
 
+    double kF = 10.0;
+    double kP = 0.0001;
+    double kI = 0;
+    double kD = 0.0;
+
+
     @Override
     public void init() {
         // Drivetrain
@@ -138,7 +144,10 @@ public class OBTeleOp_Shooter extends OpMode {
         // Shooter motor setup for setVelocity()
         shooterLeft.setDirection(DcMotorSimple.Direction.FORWARD);
         shooterRight.setDirection(DcMotorSimple.Direction.FORWARD);
-        shooterMotor.setDirection(DcMotorSimple.Direction.REVERSE);
+        shooterMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        shooterMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        shooterMotor.setVelocityPIDFCoefficients(kP, kI, kD, kF);
 
         shooterLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         shooterRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -237,9 +246,11 @@ public class OBTeleOp_Shooter extends OpMode {
         // Your existing Y behavior (kept)
         // =========================
         if (gamepad1.y) {
-
-
-            shooterMotor.setPower(0.6);
+            shooterMotor.setVelocity(2000);
+        }
+            if (!gamepad1.y) {
+                shooterMotor.setVelocity(0);
+            }
             /*
         //    setShooterRpm(-900.0);
 
@@ -439,4 +450,4 @@ public class OBTeleOp_Shooter extends OpMode {
 
          */
     }
-}
+

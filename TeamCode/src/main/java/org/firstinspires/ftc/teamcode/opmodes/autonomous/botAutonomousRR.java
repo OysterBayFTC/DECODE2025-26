@@ -19,6 +19,7 @@ import android.util.Size;
 
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
+import java.util.concurrent.Callable;
 
 import com.acmerobotics.roadrunner.Action;
 import com.acmerobotics.roadrunner.Pose2d;
@@ -90,10 +91,13 @@ public class botAutonomousRR extends LinearOpMode {
     private static final int GAIN_UNITS = 200;
 
     private static final Float DECIMATION = 2.0f;
-    private static final Pose2d shootingPosition = new Pose2d(42, 0, 0);
-    Pose2d target = new Pose2d(33.0, 2.0, 0);
+    private static final Pose2d shootingPosition = new Pose2d(-42, 0, Math.toRadians(0));
+    Pose2d target = new Pose2d(-45.7, 21.2, Math.toRadians(-141));
 
-    Pose2d pickUpPositionEnd1 = new Pose2d(0, 0, 0);
+    Pose2d pickUpPositionEnd1 = new Pose2d(-26.4, 36.6, Math.toRadians(-141));
+
+    private static final Pose2d pickUpPosition2 = new Pose2d(-56, 42.6, Math.toRadians(-144));
+    private static final Pose2d pickUpPosition3 = new Pose2d(-70, 61.6, Math.toRadians(-144));
 
 
     // =========================
@@ -110,6 +114,7 @@ public class botAutonomousRR extends LinearOpMode {
 
     private static final double AT_SPEED_TOL_RPM = 150.0;
     private static final double SPINUP_TIMEOUT_SEC = 2.0;
+    private DcMotorEx shooterMotor;
 
     private DcMotorEx shooterLeft;
     private DcMotorEx shooterRight;
@@ -168,6 +173,7 @@ public class botAutonomousRR extends LinearOpMode {
         camServo = hardwareMap.get(Servo.class, CAM_SERVO_NAME);
         camServo.setPosition(CAM_CENTER_POS);
 
+        shooterMotor = hardwareMap.get(DcMotorEx.class, "shooterMotor");
         shooterLeft = hardwareMap.get(DcMotorEx.class, "shooterLeft");
         shooterRight = hardwareMap.get(DcMotorEx.class, "shooterRight");
 
@@ -187,10 +193,14 @@ public class botAutonomousRR extends LinearOpMode {
         shooterLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         shooterRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         shooterLeft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        shooterMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
         shooterRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         shooterLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         shooterRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-       // setShooterRpm(0.0);
+        shooterMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        // setShooterRpm(0.0);
 
         intakeMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         intakeMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
@@ -268,19 +278,72 @@ public class botAutonomousRR extends LinearOpMode {
         drive.updatePoseEstimate();         // force one update so you see any heading jump immediately
 
         Action preMove = drive.actionBuilder(drive.pose)
-                .lineToX(42)
+                .lineToX(-35)
                 .build();
 
         Actions.runBlocking(preMove);
 
-/*
-        sleep(2000);
+
+        sleep(100);
         Action pickUpMove = drive.actionBuilder(drive.pose)
-                .splineToLinearHeading(target, Math.toRadians(-140))
+                .splineToLinearHeading(target, Math.toRadians(0))
                 .build();
 
         Actions.runBlocking(pickUpMove);
-        sleep(2000);
+        sleep(100);
+        Action pickUpMoveEnd = drive.actionBuilder(drive.pose)
+                .lineToX(-26.5)
+                .lineToY(36.6)
+
+
+                .build();
+
+        Actions.runBlocking(pickUpMoveEnd);
+        sleep(100);
+
+        Action postMove = drive.actionBuilder(drive.pose)
+                .splineToLinearHeading(shootingPosition, Math.toRadians(0))
+                .build();
+
+        Actions.runBlocking(postMove);
+
+        Action pickUp2 = drive.actionBuilder(drive.pose)
+                .splineToLinearHeading(pickUpPosition2, Math.toRadians(-144))
+                .build();
+
+        Actions.runBlocking(pickUp2);
+        Action pickUpMoveEnd2 = drive.actionBuilder(drive.pose)
+                .lineToX(-37.5)
+                .lineToY(56.3)
+
+                .build();
+        Action postMove2 = drive.actionBuilder(drive.pose)
+                .splineToLinearHeading(shootingPosition, Math.toRadians(0))
+                .build();
+
+        Actions.runBlocking(postMove2);
+
+        Actions.runBlocking(pickUpMoveEnd2);
+        Action pickUp3 = drive.actionBuilder(drive.pose)
+                .splineToLinearHeading(pickUpPosition3, Math.toRadians(-144))
+                .build();
+
+        Actions.runBlocking(pickUp3);
+
+
+        Action pickUpMoveEnd3 = drive.actionBuilder(drive.pose)
+                .lineToX(-53.5)
+                .lineToY(73.8)
+
+                .build();
+
+        Actions.runBlocking(pickUpMoveEnd3);
+
+        Action postMove3 = drive.actionBuilder(drive.pose)
+                .splineToLinearHeading(shootingPosition, Math.toRadians(0))
+                .build();
+
+        Actions.runBlocking(postMove3);
 
 
 
@@ -470,20 +533,44 @@ public class botAutonomousRR extends LinearOpMode {
     // =========================
     // Trap / shooter routines (unchanged)
     // =========================
-    private void runTrapServos() {
-        servoTrapLeft.setPower(-0.6);
-        servoTrapRight.setPower(0.6);
-        sleep(1200);
-        servoTrapLeft.setPower(0);
-        servoTrapRight.setPower(0);
-        sleep(1000);
-        servoTrapLeft.setPower(-0.6);
-        servoTrapRight.setPower(0.6);
-        sleep(1200);
-        servoTrapLeft.setPower(0);
-        servoTrapRight.setPower(0);
+
+*/
+        /*
+        private void runTrapServos500ms () {
+            servoTrapLeft.setPower(-0.6);
+            servoTrapRight.setPower(0.6);
+            sleep(500);
+            servoTrapLeft.setPower(0);
+            servoTrapRight.setPower(0);
+        }
+            private void runTrapServos250s () {
+            servoTrapLeft.setPower(-0.6);
+            servoTrapRight.setPower(0.6);
+            sleep(250);
+            servoTrapLeft.setPower(0);
+            servoTrapRight.setPower(0);
     }
 
+
+        private void shooting () {
+            shooterMotor.setVelocity(2000);
+            try {
+                body.run();// do other tasks while motor is on
+                runTrapServos500ms;
+                sleep(250);
+                intakeMotor.setPower(-1.0);
+                servoTrapLeft.setPower(-0.6);
+                servoTrapRight.setPower(0.6);
+                sleep(250);
+                intakeMotor.setPower(0.0);
+                runTrapServos500ms();
+                sleep(250);
+
+            } finally {
+                shooterMotor.setVelocity(0);
+            }
+        }
+/*
     private void shootBalls() {
         setShooterRpm(SHOOTER_TARGET_RPM);
 
@@ -558,7 +645,7 @@ public class botAutonomousRR extends LinearOpMode {
         runTrapServos();
         shootBalls();
     }
-/*
+
     // =========================
     // Shooter velocity helpers (unchanged)
     // =========================
@@ -594,7 +681,10 @@ public class botAutonomousRR extends LinearOpMode {
     private static double ticksPerSecToRpm(double tps) {
         return (tps * 60.0) / SHOOTER_TICKS_PER_REV;
     }
-}
-*/
+
+     */
     }
 }
+
+
+
