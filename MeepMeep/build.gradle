@@ -1,0 +1,21 @@
+// build.gradle in MeepMeep
+
+apply plugin: 'java-library'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url = 'https://maven.brott.dev/'
+    }
+}
+
+dependencies {
+    implementation "com.acmerobotics.roadrunner:meepmeep:0.1.6"
+    implementation "com.acmerobotics.roadrunner:meepmeep-roadrunner:0.1.6"
+    implementation "com.acmerobotics.roadrunner:core:1.0.1"
+}
