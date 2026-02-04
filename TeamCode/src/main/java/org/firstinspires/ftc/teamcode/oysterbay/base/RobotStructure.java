@@ -66,7 +66,7 @@ public class RobotStructure {
         // CHANGE #1: flip front/back driving
         double y = -gp.left_stick_y;
 
-        double x = -gp.left_stick_x;   // strafe
+        double x =  gp.left_stick_x;   // strafe
         double r = -gp.right_stick_x;  // rotate
 
         // Deadband

@@ -11,12 +11,11 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.teamcode.PinpointDrive;
 
-@Autonomous(name = "This Is Autonomous", group = "OB")
-public class botAutonomousRR extends LinearOpMode {
+@Autonomous(name = "Auton13375_RED", group = "OB")
+public class botAutonomous13375_RED extends LinearOpMode {
 
     // Road Runner units: inches + radians
     private static final Pose2d INITIAL_POSE = new Pose2d(0.0, 0.0, 0.0);
@@ -24,16 +23,18 @@ public class botAutonomousRR extends LinearOpMode {
     private static final double CAM_LEFT_POS = 0.0;
 
     // Poses (tune)
-    private static final Pose2d SHOOTING_POSITION = new Pose2d(-42, 0, Math.toRadians(0));
+    private static final Pose2d SHOOTING_POSITION = new Pose2d(-52.3, 0, Math.toRadians(0));
 
-    private static final Pose2d TARGET_1 = new Pose2d(-42.8, 21.4, Math.toRadians(-141));
-    private static final Pose2d PICKUP_END_1 = new Pose2d(-26.5, 36.6, Math.toRadians(-141));
+    private static final Pose2d TARGET_1 = new Pose2d(-44, -14.3, Math.toRadians(140));
+    private static final Pose2d PICKUP_END_1 = new Pose2d(-23.3, -30.6, Math.toRadians(140));
 
-    private static final Pose2d PICKUP_2 = new Pose2d(-57.76, 38.8, Math.toRadians(-141));
-    private static final Pose2d PICKUP_END_2 = new Pose2d(-37.5, 56.3, Math.toRadians(-141));
+    private static final Pose2d PICKUP_2 = new Pose2d(-64, -30.5, Math.toRadians(140));
+    private static final Pose2d PICKUP_END_2 = new Pose2d(-32.9, -56, Math.toRadians(140));
 
-    private static final Pose2d PICKUP_3 = new Pose2d(-71.3, 57, Math.toRadians(-141));
-    private static final Pose2d PICKUP_END_3 = new Pose2d(-53.5, 73.8, Math.toRadians(-141));
+    private static final Pose2d PICKUP_3 = new Pose2d(-76.7, -50.45, Math.toRadians(140));
+    private static final Pose2d PICKUP_END_3 = new Pose2d(-49, -71, Math.toRadians(140));
+    private static final Pose2d FINAL = new Pose2d(-42.4, 8.6, Math.toRadians(0));
+
 
     // =========================
     // Shooter VELOCITY (ticks/sec)
@@ -87,20 +88,21 @@ public class botAutonomousRR extends LinearOpMode {
 
         // Pre-move
         runAction(drive, drive.actionBuilder(drive.pose)
-                .lineToX(-35)
+                .lineToX(SHOOTING_POSITION.position.x)
                 .build());
         sleep(100);
-        shootSequenceTestFirst();
+        shootSequenceTest();
 
         // Pickup 3
         runAction(drive, drive.actionBuilder(drive.pose)
-                .splineToLinearHeading(PICKUP_3, Math.toRadians(0))
+                .splineToLinearHeading(PICKUP_2, Math.toRadians(0))
                 .build());
         intakeMotor.setPower(-1.0);
         runAction(drive, drive.actionBuilder(drive.pose)
-                .lineToX(PICKUP_END_3.position.x)
-                .lineToY(PICKUP_END_3.position.y)
+                .lineToX(PICKUP_END_2.position.x)
+                .lineToY(PICKUP_END_2.position.y)
                 .build());
+        sleep(200);
         intakeMotor.setPower(0.0);
 
         // Back to shooting + shoot
@@ -108,7 +110,7 @@ public class botAutonomousRR extends LinearOpMode {
                 .splineToLinearHeading(SHOOTING_POSITION, Math.toRadians(0))
                 .build());
         movingBack();
-        sleep(200);
+        sleep(50);
         shootSequenceTest();
 
         // Move to target 1
@@ -122,37 +124,19 @@ public class botAutonomousRR extends LinearOpMode {
                 .lineToX(PICKUP_END_1.position.x)
                 .lineToY(PICKUP_END_1.position.y)
                 .build());
-        sleep(100);
+        sleep(200);
         intakeMotor.setPower(0);
         // Back to shooting + shoot
         runAction(drive, drive.actionBuilder(drive.pose)
                 .splineToLinearHeading(SHOOTING_POSITION, Math.toRadians(0))
                 .build());
         movingBack();
-        sleep(200);
+        sleep(50);
         shootSequenceTest();
-
-        // Pickup 2
+        finalShots();
         runAction(drive, drive.actionBuilder(drive.pose)
-                .splineToLinearHeading(PICKUP_2, Math.toRadians(0))
+                .splineToLinearHeading(FINAL, Math.toRadians(0))
                 .build());
-        intakeMotor.setPower(-1.0);
-
-        runAction(drive, drive.actionBuilder(drive.pose)
-                .lineToX(PICKUP_END_2.position.x)
-                .lineToY(PICKUP_END_2.position.y)
-                .build());
-        intakeMotor.setPower(0.0);
-
-        // Back to shooting + shoot
-        runAction(drive, drive.actionBuilder(drive.pose)
-                .splineToLinearHeading(SHOOTING_POSITION, Math.toRadians(0))
-                .build());
-        movingBack();
-        sleep(200);
-        shootSequenceTest();
-
-
 
         // Stop everything
         setShooterVelocityTicksPerSec(0.0);
@@ -205,16 +189,16 @@ public class botAutonomousRR extends LinearOpMode {
 
         try {
             // Your original intent: trap servos, then feed with intake, etc.
+            sleep(750);
+            servoTrapLeft.setPower(-0.5);
+            servoTrapRight.setPower(0.5);
+            intakeMotor.setPower(-1.0);
+            sleep(900);
+            shooterMotor.setVelocity(800);
+            servoTrapLeft.setPower(-0.5);
+            servoTrapRight.setPower(0.5);
+            intakeMotor.setPower(-1.0);
             sleep(600);
-            servoTrapLeft.setPower(-0.6);
-            servoTrapRight.setPower(0.6);
-            intakeMotor.setPower(-1.0);
-            sleep(800);
-            shooterMotor.setVelocity(850);
-            servoTrapLeft.setPower(-0.6);
-            servoTrapRight.setPower(0.6);
-            intakeMotor.setPower(-1.0);
-            sleep(400);
             servoTrapLeft.setPower(0);
             servoTrapRight.setPower(0);
             intakeMotor.setPower(0);
@@ -224,20 +208,20 @@ public class botAutonomousRR extends LinearOpMode {
     }
     private void shootSequenceTestFirst() {
         // Spin up (ticks/sec)
-        shooterMotor.setVelocity(2300);
+        shooterMotor.setVelocity(1600);
 
         try {
             // Your original intent: trap servos, then feed with intake, etc.
-            sleep(550);
-            servoTrapLeft.setPower(-1.0);
-            servoTrapRight.setPower(1.0);
+            sleep(700);
+            servoTrapLeft.setPower(-0.6);
+            servoTrapRight.setPower(0.6);
             intakeMotor.setPower(-1.0);
             sleep(800);
-            shooterMotor.setVelocity(1000);
-            servoTrapLeft.setPower(-1.0);
-            servoTrapRight.setPower(1.0);
+            shooterMotor.setVelocity(950);
+            servoTrapLeft.setPower(-0.6);
+            servoTrapRight.setPower(0.6);
             intakeMotor.setPower(-1.0);
-            sleep(300);
+            sleep(500);
 
 
             servoTrapLeft.setPower(0);
@@ -248,10 +232,35 @@ public class botAutonomousRR extends LinearOpMode {
         }
     }
     private void movingBack() {
-        shooterMotor.setVelocity(-200);
+        shooterMotor.setVelocity(-150);
         servoTrapLeft.setPower(0.6);
         servoTrapRight.setPower(-0.6);
         sleep(200);
 
+    }
+    private void finalShots() {
+        // Spin up (ticks/sec)
+        shooterMotor.setVelocity(2100);
+
+        try {
+            // Your original intent: trap servos, then feed with intake, etc.
+            sleep(550);
+            servoTrapLeft.setPower(-1.0);
+            servoTrapRight.setPower(1.0);
+            intakeMotor.setPower(-.2);
+            sleep(800);
+            shooterMotor.setVelocity(800);
+            servoTrapLeft.setPower(-1.0);
+            servoTrapRight.setPower(1.0);
+            intakeMotor.setPower(-.2);
+            sleep(500);
+
+
+            servoTrapLeft.setPower(0);
+            servoTrapRight.setPower(0);
+            intakeMotor.setPower(0);
+        } finally {
+            shooterMotor.setVelocity(0);
+        }
     }
 }
