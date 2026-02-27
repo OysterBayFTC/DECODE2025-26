@@ -19,8 +19,6 @@ public class autoStruct {
 
     private DcMotorEx motorFrontRight;
     private DcMotorEx motorFrontLeft;
-    private CRServo servoTrapLeft;
-    private CRServo servoTrapRight;
     private DcMotorEx motorBackRight;
     private DcMotorEx motorBackLeft;
 
@@ -34,8 +32,6 @@ public class autoStruct {
         motorBackRight  = hardwareMap.get(DcMotorEx.class, "motorBackRight");
         motorBackLeft   = hardwareMap.get(DcMotorEx.class, "motorBackLeft");
 
-        servoTrapRight = hardwareMap.get(CRServo.class, "servoTrapRight");
-        servoTrapLeft  = hardwareMap.get(CRServo.class, "servoTrapLeft");
 
 
 

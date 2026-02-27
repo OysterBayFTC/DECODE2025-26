@@ -23,8 +23,7 @@ public class RobotStructure {
     private DcMotorEx motorBackRight;
     private DcMotorEx motorBackLeft;
 
-    private CRServo servoTrapLeft;
-    private CRServo servoTrapRight;
+
 
     // --- Tunables ---
     private static final double DEADBAND = 0.05;  // stick deadzone
@@ -39,8 +38,6 @@ public class RobotStructure {
         motorBackRight  = hardwareMap.get(DcMotorEx.class, "right_back");
         motorBackLeft   = hardwareMap.get(DcMotorEx.class, "left_back");
 
-        servoTrapRight = hardwareMap.get(CRServo.class, "servoTrapRight");
-        servoTrapLeft  = hardwareMap.get(CRServo.class, "servoTrapLeft");
 
         // Make +power = forward for all wheels. Adjust if needed for your build.
         motorFrontRight.setDirection(DcMotorSimple.Direction.REVERSE);

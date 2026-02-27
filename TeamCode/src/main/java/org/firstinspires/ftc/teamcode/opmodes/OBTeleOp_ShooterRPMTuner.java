@@ -74,6 +74,7 @@ public class OBTeleOp_ShooterRPMTuner extends OpMode {
 
     // RPM tuning
     private static final double DEFAULT_RPM = 4500.0;
+
     private static final double MIN_RPM = 0.0;
     private static final double MAX_RPM = 6000.0;
 
