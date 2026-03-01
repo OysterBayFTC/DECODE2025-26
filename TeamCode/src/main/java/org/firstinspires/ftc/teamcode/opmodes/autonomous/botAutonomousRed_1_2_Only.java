@@ -1,5 +1,5 @@
 // File: TeamCode/src/main/java/org/firstinspires/ftc/teamcode/opmodes/autonomous/botAutonomousRR.java
-// this code only picks up the first 2 rows of ball, due partner
+// this code only pick up the first 2 rows of ball, due partner
 package org.firstinspires.ftc.teamcode.opmodes.autonomous;
 
 import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
@@ -17,24 +17,24 @@ import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.teamcode.PinpointDrive;
 
-@Autonomous(name = "botAutonomousRed", group = "OB")
-public class botAutonomousRed extends LinearOpMode {
+@Autonomous(name = "botAutonomousRed_1_2_Only", group = "OB")
+public class botAutonomousRed_1_2_Only extends LinearOpMode {
 
     // Road Runner units: inches + radians
     private static final Pose2d INITIAL_POSE = new Pose2d(0.0, 0.0, 0.0);
 
     // Poses (tune)
-    private static final Pose2d SHOOTING_POSITION  = new Pose2d(-48, 0, Math.toRadians(0));
-    private static final Pose2d SHOOTING_POS_FINAL = new Pose2d(-36.929, -13.709, Math.toRadians(-16));
+    private static final Pose2d SHOOTING_POSITION  = new Pose2d(-47, 0, Math.toRadians(0));
+    private static final Pose2d SHOOTING_POS_FINAL = new Pose2d(-36.929, 13.709, Math.toRadians(-16));
 
-    private static final Pose2d PICK_UP_1    = new Pose2d(-43.6, -17.0, Math.toRadians(141));
-    private static final Pose2d PICKUP_END_1 = new Pose2d(-24.2, -36.9, Math.toRadians(141));
+    private static final Pose2d PICK_UP_1    = new Pose2d(-43.6, 17.0, Math.toRadians(-141));
+    private static final Pose2d PICKUP_END_1 = new Pose2d(-26.5, 36.6, Math.toRadians(-141));
 
-    private static final Pose2d PICKUP_2     = new Pose2d(-57.76, -38.8, Math.toRadians(141));
-    private static final Pose2d PICKUP_END_2 = new Pose2d(-34.8, -58.5, Math.toRadians(141));
+    private static final Pose2d PICKUP_2     = new Pose2d(-57.76, 38.8, Math.toRadians(-141));
+    private static final Pose2d PICKUP_END_2 = new Pose2d(-37.5, 56.3, Math.toRadians(-141));
 
-    private static final Pose2d PICKUP_3     = new Pose2d(-71.3, -57, Math.toRadians(141));
-    private static final Pose2d PICKUP_END_3 = new Pose2d(-47.8, -77.6, Math.toRadians(141));
+    private static final Pose2d PICKUP_3     = new Pose2d(-71.3, 57, Math.toRadians(-141));
+    private static final Pose2d PICKUP_END_3 = new Pose2d(-53.5, 73.8, Math.toRadians(-141));
 
     // =========================
     // Shooter targets (RPM)  -> converted to ticks/sec for setVelocity()

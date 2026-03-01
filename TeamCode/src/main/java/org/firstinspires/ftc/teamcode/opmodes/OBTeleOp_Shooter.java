@@ -26,7 +26,6 @@ public class OBTeleOp_Shooter extends OpMode {
     // =========================
     // Shooter targets
     // =========================
-
     private static final double SHOOTER_TARGET_RPM = 3000.0;
     private static final double SHOOTER_REVERSE_RPM = -800.0;
 
@@ -45,8 +44,21 @@ public class OBTeleOp_Shooter extends OpMode {
     private static final double SHOOTER_kD = 0.0;
     private static final double SHOOTER_kF = 12.6;
 
-    // Feed threshold
+    // Feed threshold (RIGHT trigger)
     private static final double FIRE_THRESHOLD = 0.92;
+
+    // =========================
+    // Pulsed intake (LEFT trigger) - non-blocking
+    // =========================
+    private static final double PULSE_ON_SECONDS  = 0.1;
+    private static final double PULSE_OFF_SECONDS = 0.05;
+
+    // Treat LT as "held" when above this
+    private static final double LT_ACTIVE_THRESHOLD = 0.10;
+
+    private boolean ltWasActive = false;   // edge detect for LT
+    private boolean pulseOn = false;       // current pulse state
+    private double pulseToggleTime = 0.0;  // time of last toggle (seconds)
 
     @Override
     public void init() {
@@ -72,6 +84,10 @@ public class OBTeleOp_Shooter extends OpMode {
         shooterMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         shooterMotor2.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
+        shooterMotor2.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        shooterMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+
         intakeMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         intakeMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         intakeMotor.setPower(0.0);
@@ -83,6 +99,11 @@ public class OBTeleOp_Shooter extends OpMode {
         // Make sure shooter is stopped at init
         setShooterRpm(0.0);
 
+        // Reset pulse state
+        ltWasActive = false;
+        pulseOn = false;
+        pulseToggleTime = getRuntime();
+
         telemetry.addLine("TeleOp ready (simple shooter)");
         telemetry.addData("Shooter RPM Target", SHOOTER_TARGET_RPM);
         telemetry.update();
@@ -91,8 +112,6 @@ public class OBTeleOp_Shooter extends OpMode {
     @Override
     public void loop() {
         robot.driveFromGamepad(gamepad1, true, 0.8);
-
-
 
         // Shooter control (simple)
         // Right bumper = forward shooter RPM
@@ -110,27 +129,52 @@ public class OBTeleOp_Shooter extends OpMode {
 
         setShooterRpm(shooterTargetRpm);
 
-        // Upper intake / feed control
-        double trig = Range.clip(gamepad1.right_trigger, 0.0, 1.0);
+        // -------------------------
+        // Intake / feed control
+        // Priority order (top overrides bottom):
+        // 1) dpad_down reverse upper
+        // 2) RIGHT trigger feed (unless reversing shooter)
+        // 3) left_bumper full system
+        // 4) LEFT trigger pulsed intake (both motors)
+        // 5) A = old functionality (intakeMotor only)
+        // else stop
+        // -------------------------
+
+        double rt = Range.clip(gamepad1.right_trigger, 0.0, 1.0);
+        double lt = Range.clip(gamepad1.left_trigger, 0.0, 1.0);
+        boolean ltActive = lt >= LT_ACTIVE_THRESHOLD;
 
         if (gamepad1.dpad_down) {
             upperIntakeMotor.setPower(-0.2);
-        } else if (!gamepad1.dpad_up && trig >= FIRE_THRESHOLD) {
+            intakeMotor.setPower(0.0);
+            resetPulseIfNeeded(true, ltActive);
+        } else if (!gamepad1.dpad_up && rt >= FIRE_THRESHOLD) {
             upperIntakeMotor.setPower(-0.2);
+            intakeMotor.setPower(0.0);
+            resetPulseIfNeeded(true, ltActive);
         } else if (gamepad1.left_bumper) {
             upperIntakeMotor.setPower(1.0);
             intakeMotor.setPower(-1.0);
+            resetPulseIfNeeded(true, ltActive);
+        } else if (ltActive) {
+            // NEW: pulsed intake while LEFT trigger is held (both intakes pulsed)
+            runPulsedIntakeWhileLtHeld();
         } else if (gamepad1.a) {
+            // OLD: keep A functionality exactly as you had it (intake only)
             intakeMotor.setPower(-1.0);
+            upperIntakeMotor.setPower(0.0);
+            resetPulseIfNeeded(true, ltActive);
         } else {
             intakeMotor.setPower(0.0);
             upperIntakeMotor.setPower(0.0);
+            resetPulseIfNeeded(false, ltActive);
         }
+
         if (gamepad1.b) {
-            trapServo.setPosition(0.51);
+            trapServo.setPosition(0.05); // Close
         }
-        if(gamepad1.y){
-            trapServo.setPosition(0.5);
+        if (gamepad1.y) {
+            trapServo.setPosition(.80); // Open
         }
 
         // Telemetry
@@ -140,6 +184,8 @@ public class OBTeleOp_Shooter extends OpMode {
         telemetry.addData("Shooter Target RPM", "%.0f", shooterTargetRpm);
         telemetry.addData("Motor1 RPM", "%.0f", m1Rpm);
         telemetry.addData("Motor2 RPM", "%.0f", m2Rpm);
+
+        telemetry.addData("LT pulsing", ltActive ? (pulseOn ? "ON" : "OFF") : "inactive");
         telemetry.update();
     }
 
@@ -154,7 +200,80 @@ public class OBTeleOp_Shooter extends OpMode {
     }
 
     // =========================
-    // Helpers
+    // Pulsed intake helpers (LEFT trigger)
+    // =========================
+
+    /**
+     * Runs a 0.5s ON / 0.25s OFF pattern while LEFT trigger is held.
+     * Starts with ON immediately on initial activation.
+     * Pulses BOTH intakes.
+     */
+    private void runPulsedIntakeWhileLtHeld() {
+        double now = getRuntime();
+
+        boolean ltActive = Range.clip(gamepad1.left_trigger, 0.0, 1.0) >= LT_ACTIVE_THRESHOLD;
+
+        // Rising edge: if LT just became active, start ON immediately
+        if (ltActive && !ltWasActive) {
+            ltWasActive = true;
+            pulseOn = true;
+            pulseToggleTime = now;
+        }
+
+        // If LT is no longer active, stop and reset
+        if (!ltActive) {
+            intakeMotor.setPower(0.0);
+            upperIntakeMotor.setPower(0.0);
+            ltWasActive = false;
+            pulseOn = false;
+            pulseToggleTime = now;
+            return;
+        }
+
+        // Advance state machine
+        double elapsed = now - pulseToggleTime;
+        if (pulseOn) {
+            if (elapsed >= PULSE_ON_SECONDS) {
+                pulseOn = false;
+                pulseToggleTime = now;
+            }
+        } else {
+            if (elapsed >= PULSE_OFF_SECONDS) {
+                pulseOn = true;
+                pulseToggleTime = now;
+            }
+        }
+
+        // Apply outputs for current state (tune if needed)
+        if (pulseOn) {
+            intakeMotor.setPower(-1.0);
+            upperIntakeMotor.setPower(1.0);
+        } else {
+            intakeMotor.setPower(0.0);
+            upperIntakeMotor.setPower(0.0);
+        }
+    }
+
+    /**
+     * Resets pulse tracking when other controls take over,
+     * so next LT press starts cleanly with ON.
+     */
+    private void resetPulseIfNeeded(boolean otherControlActive, boolean ltActive) {
+        if (otherControlActive) {
+            ltWasActive = false;
+            pulseOn = false;
+            pulseToggleTime = getRuntime();
+            return;
+        }
+
+        // If LT isn't active, clear edge detection so next activation is a rising edge
+        if (!ltActive) {
+            ltWasActive = false;
+        }
+    }
+
+    // =========================
+    // Shooter helpers
     // =========================
     private void setShooterRpm(double rpm) {
         double tps = rpmToTicksPerSec(rpm);

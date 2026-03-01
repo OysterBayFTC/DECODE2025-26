@@ -1,9 +1,10 @@
 // File: TeamCode/src/main/java/org/firstinspires/ftc/teamcode/opmodes/autonomous/botAutonomousRR.java
+// this code only picks up the first 2 rows of ball, due partner
 package org.firstinspires.ftc.teamcode.opmodes.autonomous;
 
+import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
 import com.acmerobotics.roadrunner.Action;
 import com.acmerobotics.roadrunner.Pose2d;
-import com.acmerobotics.roadrunner.ftc.Actions;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
@@ -11,72 +12,98 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.teamcode.PinpointDrive;
 
-@Autonomous(name = "AutonBlue", group = "OB")
+@Autonomous(name = "botAutonomousBlue", group = "OB")
 public class botAutonomousBlue extends LinearOpMode {
 
     // Road Runner units: inches + radians
     private static final Pose2d INITIAL_POSE = new Pose2d(0.0, 0.0, 0.0);
 
-    private static final double CAM_LEFT_POS = 0.0;
-
     // Poses (tune)
-    private static final Pose2d SHOOTING_POSITION = new Pose2d(-55.7, 0, Math.toRadians(0));
+    private static final Pose2d SHOOTING_POSITION  = new Pose2d(-48, 0, Math.toRadians(0));
+    private static final Pose2d SHOOTING_POS_FINAL = new Pose2d(-36.929, 13.709, Math.toRadians(-16));
 
-    private static final Pose2d TARGET_1 = new Pose2d(-49.3, 15, Math.toRadians(-140));
-    private static final Pose2d PICKUP_END_1 = new Pose2d(-26, 35.6, Math.toRadians(-140));
+    private static final Pose2d PICK_UP_1    = new Pose2d(-43.6, 17.0, Math.toRadians(-141));
+    private static final Pose2d PICKUP_END_1 = new Pose2d(-24.2, 36.9, Math.toRadians(-141));
 
-    private static final Pose2d PICKUP_2 = new Pose2d(-64, 33.9, Math.toRadians(-140));
-    private static final Pose2d PICKUP_END_2 = new Pose2d(-36.4, 61, Math.toRadians(-140));
+    private static final Pose2d PICKUP_2     = new Pose2d(-57.76, 38.8, Math.toRadians(-141));
+    private static final Pose2d PICKUP_END_2 = new Pose2d(-34.8, 58.5, Math.toRadians(-141));
 
-    private static final Pose2d PICKUP_3 = new Pose2d(-80.4, 51.2, Math.toRadians(-140));
-    private static final Pose2d PICKUP_END_3 = new Pose2d(-49.8, 77.79, Math.toRadians(-140));
-    private static final Pose2d FINAL = new Pose2d(-42.4, -8.6, Math.toRadians(0));
-
-
+    private static final Pose2d PICKUP_3     = new Pose2d(-71.3, 57, Math.toRadians(-141));
+    private static final Pose2d PICKUP_END_3 = new Pose2d(-47.8, 77.6, Math.toRadians(-141));
 
     // =========================
-    // Shooter VELOCITY (ticks/sec)
+    // Shooter targets (RPM)  -> converted to ticks/sec for setVelocity()
     // =========================
-    // This is NOT RPM. It is encoder ticks per second as expected by DcMotorEx.setVelocity().
-    // Tune this number on-robot.
-    private static final double SHOOTER_TARGET_TICKS_PER_SEC = 2000.0;
+    private static final double SHOOTER_TARGET_RPM = 2750.0;
+
+    // =========================
+    // Encoder conversion (match your TeleOp)
+    // =========================
+    private static final double ENCODER_TICKS_PER_MOTOR_REV = 28.0;
+    private static final double GEAR_RATIO_MOTOR_TO_AXLE = 1.0; // change if needed
+    private static final double TICKS_PER_AXLE_REV = ENCODER_TICKS_PER_MOTOR_REV * GEAR_RATIO_MOTOR_TO_AXLE;
+
+    // =========================
+    // Velocity PIDF
+    // =========================
+    private static final double SHOOTER_kP = 5.0;
+    private static final double SHOOTER_kI = 0.0;
+    private static final double SHOOTER_kD = 0.0;
+    private static final double SHOOTER_kF = 12.6;
 
     private DcMotorEx shooterMotor;
+    private DcMotorEx shooterMotor2;
+
     private DcMotorEx intakeMotor;
+    private DcMotorEx upperIntakeMotor;
 
     private CRServo servoTrapLeft;
     private CRServo servoTrapRight;
-
+    private Servo trapServo;
 
     @Override
     public void runOpMode() {
 
-        shooterMotor = hardwareMap.get(DcMotorEx.class, "shooterMotor");
+        shooterMotor  = hardwareMap.get(DcMotorEx.class, "shooterMotor");
+        shooterMotor2 = hardwareMap.get(DcMotorEx.class, "shooterMotor2"); // FIXED
+
         intakeMotor = hardwareMap.get(DcMotorEx.class, "intakeMotor");
+        upperIntakeMotor = hardwareMap.get(DcMotorEx.class, "upperIntakeMotor");
 
         servoTrapLeft = hardwareMap.get(CRServo.class, "servoTrapLeft");
         servoTrapRight = hardwareMap.get(CRServo.class, "servoTrapRight");
-
-
-        // You used camServo but never initialized it in your code
+        trapServo = hardwareMap.get(Servo.class, "trapServo");
 
         // Shooter setup
         shooterMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        shooterMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        shooterMotor2.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
         shooterMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        setShooterVelocityTicksPerSec(0.0);
+        shooterMotor2.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+        // IMPORTANT: Match TeleOp directions
+        shooterMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+        shooterMotor2.setDirection(DcMotorSimple.Direction.REVERSE);
+
+        shooterMotor.setVelocityPIDFCoefficients(SHOOTER_kP, SHOOTER_kI, SHOOTER_kD, SHOOTER_kF);
+        shooterMotor2.setVelocityPIDFCoefficients(SHOOTER_kP, SHOOTER_kI, SHOOTER_kD, SHOOTER_kF);
+
+        setShooterRpm(0.0);
 
         // Intake setup
         intakeMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         intakeMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         intakeMotor.setPower(0.0);
 
-
-
+        upperIntakeMotor.setDirection(DcMotorSimple.Direction.REVERSE);
+        upperIntakeMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        upperIntakeMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        upperIntakeMotor.setPower(0.0);
 
         PinpointDrive drive = new PinpointDrive(hardwareMap, INITIAL_POSE);
         drive.pose = INITIAL_POSE;
@@ -88,13 +115,71 @@ public class botAutonomousBlue extends LinearOpMode {
         waitForStart();
         if (isStopRequested()) return;
 
-        // Pre-move
-        runAction(drive, drive.actionBuilder(drive.pose)
-                .lineToX(SHOOTING_POSITION.position.x)
-                .build());
-        sleep(100);
-        shootSequenceTest();
+        // Pre-move + first shots
+        setShooterRpm(SHOOTER_TARGET_RPM);
 
+        runAction(drive, drive.actionBuilder(drive.pose)
+                .lineToX(-35)
+                .build());
+
+        trapServo.setPosition(0.82);
+        sleep(750);
+        shootSequence();
+        trapServo.setPosition(0.15);
+
+        // Pickup 1
+        runAction(drive, drive.actionBuilder(drive.pose)
+                .splineToLinearHeading(PICK_UP_1, Math.toRadians(0))
+                .build());
+
+        intakeMotor.setPower(-1.0);
+        runAction(drive, drive.actionBuilder(drive.pose)
+                .lineToX(PICKUP_END_1.position.x)
+                .lineToY(PICKUP_END_1.position.y)
+                .build());
+        intakeMotor.setPower(0.0);
+
+        trapServo.setPosition(0.05);
+        sleep(200);
+
+        // Back to shooting + shoot
+        setShooterRpm(SHOOTER_TARGET_RPM);
+        runAction(drive, drive.actionBuilder(drive.pose)
+                .splineToLinearHeading(SHOOTING_POSITION, Math.toRadians(0))
+                .build());
+        movingBack();
+
+        trapServo.setPosition(0.82);
+        sleep(1000);
+        shootSequence();
+        trapServo.setPosition(0.15);
+
+        // Pickup 2
+        runAction(drive, drive.actionBuilder(drive.pose)
+                .splineToLinearHeading(PICKUP_2, Math.toRadians(0))
+                .build());
+        intakeMotor.setPower(-1.0);
+        runAction(drive, drive.actionBuilder(drive.pose)
+                .lineToX(PICKUP_END_2.position.x)
+                .lineToY(PICKUP_END_2.position.y)
+                .build());
+        intakeMotor.setPower(0.0);
+
+        trapServo.setPosition(0.05);
+        sleep(200);
+
+        // Back to shooting + shoot
+        setShooterRpm(SHOOTER_TARGET_RPM);
+        runAction(drive, drive.actionBuilder(drive.pose)
+                .splineToLinearHeading(SHOOTING_POSITION, Math.toRadians(0))
+                .build());
+        movingBack();
+
+        trapServo.setPosition(0.82);
+        sleep(1000);
+        shootSequence();
+        trapServo.setPosition(0.15);
+/*
         // Pickup 3
         runAction(drive, drive.actionBuilder(drive.pose)
                 .splineToLinearHeading(PICKUP_3, Math.toRadians(0))
@@ -104,165 +189,128 @@ public class botAutonomousBlue extends LinearOpMode {
                 .lineToX(PICKUP_END_3.position.x)
                 .lineToY(PICKUP_END_3.position.y)
                 .build());
-        sleep(200);
         intakeMotor.setPower(0.0);
 
         // Back to shooting + shoot
+        setShooterRpm(SHOOTER_TARGET_RPM);
         runAction(drive, drive.actionBuilder(drive.pose)
                 .splineToLinearHeading(SHOOTING_POSITION, Math.toRadians(0))
                 .build());
         movingBack();
-        sleep(50);
-        shootSequenceTest();
 
-        // Move to target 1
-        runAction(drive, drive.actionBuilder(drive.pose)
-                .splineToLinearHeading(TARGET_1, Math.toRadians(0))
-                .build());
-        sleep(100);
-        intakeMotor.setPower(-1.0);
-        // End of pickup path 1
-        runAction(drive, drive.actionBuilder(drive.pose)
-                .lineToX(PICKUP_END_1.position.x)
-                .lineToY(PICKUP_END_1.position.y)
-                .build());
-        sleep(200);
-        intakeMotor.setPower(0);
-        // Back to shooting + shoot
-        runAction(drive, drive.actionBuilder(drive.pose)
-                .splineToLinearHeading(SHOOTING_POSITION, Math.toRadians(0))
-                .build());
-        movingBack();
-        sleep(50);
-        shootSequenceTest();
-        finalShots();
-        runAction(drive, drive.actionBuilder(drive.pose)
-                .splineToLinearHeading(FINAL, Math.toRadians(0))
-                .build());
-
+        trapServo.setPosition(0.82);
+        sleep(1000);
+        shootSequence();
+*/
         // Stop everything
-        setShooterVelocityTicksPerSec(0.0);
+        setShooterRpm(0.0);
         intakeMotor.setPower(0.0);
+        upperIntakeMotor.setPower(0.0);
         servoTrapLeft.setPower(0.0);
         servoTrapRight.setPower(0.0);
     }
 
+    /**
+     * Runs a Road Runner Action while continuously updating pose + printing X/Y/Heading.
+     * Telemetry updates during motion.
+     */
     private void runAction(PinpointDrive drive, Action action) {
-        Actions.runBlocking(action);
+        TelemetryPacket packet = new TelemetryPacket();
+
+        while (opModeIsActive() && action.run(packet)) {
+            drive.updatePoseEstimate();
+
+            Pose2d p = drive.pose;
+            telemetry.addData("X (in)", "%.2f", p.position.x);
+            telemetry.addData("Y (in)", "%.2f", p.position.y);
+            telemetry.addData("Heading (deg)", "%.1f", Math.toDegrees(p.heading.toDouble()));
+            telemetry.update();
+
+            idle();
+            packet = new TelemetryPacket();
+        }
+
         drive.updatePoseEstimate();
+        Pose2d p = drive.pose;
+        telemetry.addData("X (in)", "%.2f", p.position.x);
+        telemetry.addData("Y (in)", "%.2f", p.position.y);
+        telemetry.addData("Heading (deg)", "%.1f", Math.toDegrees(p.heading.toDouble()));
+        telemetry.update();
     }
 
-    // Velocity in ticks/sec (what DcMotorEx.setVelocity expects)
-    private void setShooterVelocityTicksPerSec(double ticksPerSec) {
-        shooterMotor.setVelocity(ticksPerSec);
+    // =========================
+    // Shooter helpers (RPM -> ticks/sec)
+    // =========================
+    private void setShooterRpm(double rpm) {
+        double tps = rpmToTicksPerSec(rpm);
+        shooterMotor.setVelocity(tps);
+        shooterMotor2.setVelocity(tps);
     }
 
-    private void runTrapServosMs(long ms) {
-        servoTrapLeft.setPower(-0.6);
-        servoTrapRight.setPower(0.6);
-        sleep(ms);
-        servoTrapLeft.setPower(0.0);
-        servoTrapRight.setPower(0.0);
+    private static double rpmToTicksPerSec(double rpm) {
+        return (rpm * TICKS_PER_AXLE_REV) / 60.0;
     }
 
+    @SuppressWarnings("unused")
+    private static double ticksPerSecToRpm(double tps) {
+        return (tps * 60.0) / TICKS_PER_AXLE_REV;
+    }
+
+    // =========================
+    // Shooting / feeding
+    // =========================
     private void shootSequence() {
-        // Spin up (ticks/sec)
-        shooterMotor.setVelocity(2000);
+        // Assumes shooter is already spun up (setShooterRpm called before this)
+        intakeMotor.setPower(-1.0);
+        upperIntakeMotor.setPower(1.0);
+        sleep(100);
+        intakeMotor.setPower(0.0);
+        upperIntakeMotor.setPower(0.0);
+        sleep(100);
 
-        try {
-            // Your original intent: trap servos, then feed with intake, etc.
-            runTrapServosMs(500);
-            sleep(250);
+        intakeMotor.setPower(-1.0);
+        upperIntakeMotor.setPower(1.0);
+        sleep(100);
+        intakeMotor.setPower(0.0);
+        upperIntakeMotor.setPower(0.0);
+        sleep(100);
 
-            intakeMotor.setPower(-1.0);
-            runTrapServosMs(250);
-            intakeMotor.setPower(0.0);
+        intakeMotor.setPower(-1.0);
+        upperIntakeMotor.setPower(1.0);
+        sleep(100);
+        intakeMotor.setPower(0.0);
+        upperIntakeMotor.setPower(0.0);
+        sleep(100);
 
-            sleep(250);
-            runTrapServosMs(500);
-            sleep(250);
-        } finally {
-            shooterMotor.setVelocity(0);
-        }
+        intakeMotor.setPower(-1.0);
+        upperIntakeMotor.setPower(1.0);
+        sleep(100);
+        intakeMotor.setPower(0.0);
+        upperIntakeMotor.setPower(0.0);
+        sleep(100);
+
+        intakeMotor.setPower(-1.0);
+        upperIntakeMotor.setPower(1.0);
+        sleep(100);
+        intakeMotor.setPower(0.0);
+        upperIntakeMotor.setPower(0.0);
+        sleep(100);
+
+        intakeMotor.setPower(-1.0);
+        upperIntakeMotor.setPower(1.0);
+        sleep(100);
+        intakeMotor.setPower(0.0);
+        upperIntakeMotor.setPower(0.0);
+        sleep(100);
     }
-    private void shootSequenceTest() {
-        // Spin up (ticks/sec)
-        shooterMotor.setVelocity(1150);
 
-        try {
-            // Your original intent: trap servos, then feed with intake, etc.
-            sleep(750);
-            servoTrapLeft.setPower(-0.5);
-            servoTrapRight.setPower(0.5);
-            intakeMotor.setPower(-1.0);
-            sleep(900);
-            shooterMotor.setVelocity(800);
-            servoTrapLeft.setPower(-0.5);
-            servoTrapRight.setPower(0.5);
-            intakeMotor.setPower(-1.0);
-            sleep(600);
-            servoTrapLeft.setPower(0);
-            servoTrapRight.setPower(0);
-            intakeMotor.setPower(0);
-        } finally {
-            shooterMotor.setVelocity(0);
-        }
-    }
-    private void shootSequenceTestFirst() {
-        // Spin up (ticks/sec)
-        shooterMotor.setVelocity(1600);
-
-        try {
-            // Your original intent: trap servos, then feed with intake, etc.
-            sleep(700);
-            servoTrapLeft.setPower(-0.6);
-            servoTrapRight.setPower(0.6);
-            intakeMotor.setPower(-1.0);
-            sleep(800);
-            shooterMotor.setVelocity(950);
-            servoTrapLeft.setPower(-0.6);
-            servoTrapRight.setPower(0.6);
-            intakeMotor.setPower(-1.0);
-            sleep(500);
-
-
-            servoTrapLeft.setPower(0);
-            servoTrapRight.setPower(0);
-            intakeMotor.setPower(0);
-        } finally {
-            shooterMotor.setVelocity(0);
-        }
-    }
     private void movingBack() {
-        shooterMotor.setVelocity(-150);
+        // Do NOT reverse shooter here (that can spit backwards).
+        // Just run your trap servos.
         servoTrapLeft.setPower(0.6);
         servoTrapRight.setPower(-0.6);
-
-
-    }
-    private void finalShots() {
-        // Spin up (ticks/sec)
-        shooterMotor.setVelocity(2200);
-
-        try {
-            // Your original intent: trap servos, then feed with intake, etc.
-            sleep(550);
-            servoTrapLeft.setPower(-1.0);
-            servoTrapRight.setPower(1.0);
-            intakeMotor.setPower(-.2);
-            sleep(800);
-            shooterMotor.setVelocity(800);
-            servoTrapLeft.setPower(-1.0);
-            servoTrapRight.setPower(1.0);
-            intakeMotor.setPower(-.2);
-            sleep(500);
-
-
-            servoTrapLeft.setPower(0);
-            servoTrapRight.setPower(0);
-            intakeMotor.setPower(0);
-        } finally {
-            shooterMotor.setVelocity(0);
-        }
+        sleep(200);
+        servoTrapLeft.setPower(0.0);
+        servoTrapRight.setPower(0.0);
     }
 }
