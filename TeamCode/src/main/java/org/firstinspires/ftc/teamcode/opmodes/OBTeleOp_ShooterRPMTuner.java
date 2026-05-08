@@ -3,7 +3,6 @@ package org.firstinspires.ftc.teamcode.opmodes;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
@@ -14,84 +13,73 @@ import com.qualcomm.robotcore.util.Range;
 import org.firstinspires.ftc.teamcode.oysterbay.base.RobotStructure;
 
 /**
- * Shooter RPM Fine Tuner (setVelocity version that matches your current shooter sign logic)
+ * Shooter RPM Fine Tuner (setVelocity) - MATCHES OBTeleOp_Shooter_Velocity systems/logic
  *
- * Goal: park in one place, repeatedly shoot, and tune RPM until arc is perfect.
+ * What this matches from your driver TeleOp:
+ *  - Motor names: shooterMotor, shooterMotor2, intakeMotor, upperIntakeMotor, trapServo
+ *  - Motor directions:
+ *      shooterMotor  FORWARD
+ *      shooterMotor2 REVERSE
+ *      upperIntakeMotor REVERSE
+ *  - setShooterRpm(): sends SAME +tps to both motors (no extra sign flips)
+ *  - RPM conversion uses TICKS_PER_AXLE_REV = 28 * gearRatio (same structure)
+ *  - Trap servo on gamepad2: a=close(0.05), b=open(0.80) (same as your TeleOp code)
  *
- * Controls (gamepad1):
- *  - Drive: normal RobotStructure drive
- *  - Intake: A (hold)
- *  - Trap:   B (hold)  (same as your TeleOp)
+ * Tuner controls (gamepad1):
+ *  - Drive: robot.driveFromGamepad(gamepad1, true, 0.55)
+ *  - RPM adjust:
+ *      RB: +150 RPM
+ *      LB: -150 RPM
+ *      DpadUp: +10 RPM
+ *      DpadDown: -10 RPM
+ *      START: reset to DEFAULT_RPM
+ *  - Shooter:
+ *      RT >= SPIN_THRESHOLD: spin at target RPM
+ *      RT >= FIRE_THRESHOLD: pulse tipper (this OpMode uses trapServo as the "tipper/fire" servo)
  *
- * Shooter:
- *  - Right trigger: slight press spins up, full press fires (same behavior as driver)
- *
- * RPM adjust (4 buttons total):
- *  - Right bumper: +150 RPM
- *  - Left bumper:  -150 RPM
- *  - Dpad up:      +10 RPM
- *  - Dpad down:    -10 RPM
- *
- * Optional tuning helpers:
- *  - X: toggle REQUIRE_AT_SPEED_TO_FIRE (lets you choose “always fire” vs “fire only at speed”)
- *  - Dpad left/right: adjust AT_SPEED_TOL_RPM by +/-10 (how tight “at speed” is)
- *  - START: reset RPM to default
- *
- * IMPORTANT: This OpMode assumes your fixed wiring outcome:
- *  - Both shooter motors set Direction.FORWARD
- *  - Right motor encoder/velocity is negative in the shooting direction
- *  - We command RIGHT motor with negative setVelocity and "flip" it for telemetry checks
+ * Other:
+ *  - Intake (hold): gamepad1.a = intakeMotor -1, upperIntakeMotor 0  (same "A intake only" feel)
  */
 @TeleOp(name = "OB Shooter RPM Tuner (Velocity)", group = "OB")
 public class OBTeleOp_ShooterRPMTuner extends OpMode {
 
     private final RobotStructure robot = new RobotStructure();
 
-    // Hardware
-    private DcMotorEx shooterLeft;
-    private DcMotorEx shooterRight;
+    // Hardware (MATCHES your TeleOp names)
+    private DcMotorEx shooterMotor;
+    private DcMotorEx shooterMotor2;
     private DcMotorEx intakeMotor;
-    private Servo tipperServo;
-    private CRServo servoTrapLeft;
-    private CRServo servoTrapRight;
+    private DcMotorEx upperIntakeMotor;
+    private Servo trapServo;
 
     // =========================
-    // Shooter config (edit these as needed)
+    // Shooter targets / conversion (MATCHES TeleOp structure)
     // =========================
-    private static final String SHOOTER_LEFT_NAME  = "shooterLeft";
-    private static final String SHOOTER_RIGHT_NAME = "shooterRight";
-    private static final String INTAKE_NAME        = "intakeMotor";
-    private static final String TIPPER_NAME        = "tipperServo";
-    private static final String TRAP_LEFT_NAME     = "servoTrapLeft";
-    private static final String TRAP_RIGHT_NAME    = "servoTrapRight";
-
-    // Encoder ticks/rev (verify for your exact motor)
-    private static final double SHOOTER_TICKS_PER_REV = 28.0;
-
-    // Sign convention (matches the “current logic” we settled on)
-    private static final int LEFT_CMD_SIGN  = +1;
-    private static final int RIGHT_CMD_SIGN = -1;
+    private static final double ENCODER_TICKS_PER_MOTOR_REV = 28.0;
+    private static final double GEAR_RATIO_MOTOR_TO_AXLE = 1.0; // change if needed
+    private static final double TICKS_PER_AXLE_REV = ENCODER_TICKS_PER_MOTOR_REV * GEAR_RATIO_MOTOR_TO_AXLE;
 
     // RPM tuning
-    private static final double DEFAULT_RPM = 4500.0;
-
+    private static final double DEFAULT_RPM = 3000.0;
     private static final double MIN_RPM = 0.0;
     private static final double MAX_RPM = 6000.0;
 
     private static final double COARSE_STEP_RPM = 150.0;
     private static final double FINE_STEP_RPM   = 10.0;
 
-    // Servo positions
-    private static final double SERVO_FIRE_POS = 0.25;
-    private static final double SERVO_REST_POS = 0.10;
-
-    // Trigger thresholds (same feel as driver)
+    // Trigger thresholds (same feel concept as driver: light press = spin, full = fire)
     private static final double SPIN_THRESHOLD  = 0.08;
     private static final double FIRE_THRESHOLD  = 0.92;
     private static final double RESET_THRESHOLD = 0.40;
 
     // Fire timing
     private static final long FIRE_PULSE_MS = 220;
+
+    // Fire positions (you can tune these)
+    // Note: Your driver TeleOp uses trapServo positions 0.05 and 0.80 for close/open.
+    // For firing, you may want a quick "push" position; defaulting to 0.80 then returning to 0.05.
+    private static final double SERVO_FIRE_POS = 0.80; // "Open"
+    private static final double SERVO_REST_POS = 0.05; // "Close"
 
     // Optional: firing gate
     private boolean requireAtSpeedToFire = true;
@@ -119,61 +107,63 @@ public class OBTeleOp_ShooterRPMTuner extends OpMode {
     public void init() {
         robot.init(hardwareMap);
 
-        shooterLeft  = hardwareMap.get(DcMotorEx.class, SHOOTER_LEFT_NAME);
-        shooterRight = hardwareMap.get(DcMotorEx.class, SHOOTER_RIGHT_NAME);
-        intakeMotor  = hardwareMap.get(DcMotorEx.class, INTAKE_NAME);
-        tipperServo  = hardwareMap.get(Servo.class, TIPPER_NAME);
+        shooterMotor = hardwareMap.get(DcMotorEx.class, "shooterMotor");
+        shooterMotor2 = hardwareMap.get(DcMotorEx.class, "shooterMotor2");
+        intakeMotor = hardwareMap.get(DcMotorEx.class, "intakeMotor");
+        upperIntakeMotor = hardwareMap.get(DcMotorEx.class, "upperIntakeMotor");
+        trapServo = hardwareMap.get(Servo.class, "trapServo");
 
-        servoTrapLeft  = hardwareMap.get(CRServo.class, TRAP_LEFT_NAME);
-        servoTrapRight = hardwareMap.get(CRServo.class, TRAP_RIGHT_NAME);
+        // MATCH TeleOp motor directions
+        shooterMotor.setDirection(DcMotorSimple.Direction.FORWARD);
+        shooterMotor2.setDirection(DcMotorSimple.Direction.REVERSE);
+        upperIntakeMotor.setDirection(DcMotorSimple.Direction.REVERSE);
 
-        // Shooter motor setup for velocity control
-        shooterLeft.setDirection(DcMotorSimple.Direction.FORWARD);
-        shooterRight.setDirection(DcMotorSimple.Direction.FORWARD);
+        // MATCH TeleOp modes
+        shooterMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        shooterMotor2.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
-        shooterLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        shooterRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        // Keep it consistent with your driver TeleOp: BRAKE on shooter at zero
+        shooterMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        shooterMotor2.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        shooterLeft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        shooterRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-
-        shooterLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-        shooterRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-
-        // Intake setup
         intakeMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         intakeMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        intakeMotor.setPower(0.0);
 
-        tipperServo.setPosition(SERVO_REST_POS);
+        upperIntakeMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        upperIntakeMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        upperIntakeMotor.setPower(0.0);
 
+        // Set trap to rest
+        trapServo.setPosition(SERVO_REST_POS);
+
+        // Make sure shooter is stopped at init
         setShooterRpm(0.0);
 
         telemetry.addLine("OB Shooter RPM Tuner (Velocity) ready");
-        telemetry.addLine("RB/LB: +/-150 RPM | DpadUp/Down: +/-10 RPM");
-        telemetry.addLine("RT: spin | Full RT: fire (same feel as driver)");
-        telemetry.addLine("X: toggle require-at-speed | Dpad L/R: tol +/-10 | START: reset RPM");
+        telemetry.addLine("RB/LB: +/-150 RPM | DpadUp/Down: +/-10 RPM | START: reset");
+        telemetry.addLine("RT: spin | Full RT: fire (servo pulse)");
+        telemetry.addLine("X: toggle require-at-speed | Dpad L/R: tol +/-10");
         telemetry.update();
     }
 
     @Override
     public void loop() {
-        // Drive (keep your normal feel)
-        boolean squaredInputs = true;
-        double speedMult = gamepad1.left_bumper ? 0.55 : 0.55;
-        robot.driveFromGamepad(gamepad1, squaredInputs, speedMult);
+        // Drive (same call style as your TeleOp; speedMult fixed like your original tuner)
+        robot.driveFromGamepad(gamepad1, true, 0.55);
 
-        // Intake (hold)
-        if (gamepad1.a) intakeMotor.setPower(-1.0);
-        else intakeMotor.setPower(0.0);
-
-        // Trap (hold)
-        if (gamepad1.b) {
-            servoTrapLeft.setPower(-1.0);
-            servoTrapRight.setPower(0.2);
+        // Intake (match your TeleOp "A intake only" behavior)
+        if (gamepad1.a) {
+            intakeMotor.setPower(-1.0);
+            upperIntakeMotor.setPower(0.0);
         } else {
-            servoTrapLeft.setPower(0);
-            servoTrapRight.setPower(0);
+            intakeMotor.setPower(0.0);
+            upperIntakeMotor.setPower(0.0);
         }
+
+        // Trap servo manual (MATCH driver TeleOp mapping)
+        if (gamepad2.a) trapServo.setPosition(0.05); // Close
+        if (gamepad2.b) trapServo.setPosition(0.80); // Open
 
         // === RPM adjust buttons ===
         boolean rb = gamepad1.right_bumper;
@@ -214,7 +204,6 @@ public class OBTeleOp_ShooterRPMTuner extends OpMode {
         switch (state) {
             case IDLE:
                 setShooterRpm(0.0);
-                tipperServo.setPosition(SERVO_REST_POS);
                 firedThisPress = false;
 
                 if (trig >= SPIN_THRESHOLD) {
@@ -232,12 +221,13 @@ public class OBTeleOp_ShooterRPMTuner extends OpMode {
 
                 if (trig >= FIRE_THRESHOLD && !firedThisPress) {
                     if (!requireAtSpeedToFire || atSpeed || timedOut) {
-                        tipperServo.setPosition(SERVO_FIRE_POS);
+                        trapServo.setPosition(SERVO_FIRE_POS);
                         timer.reset();
                         firedThisPress = true;
                         state = FireState.FIRING;
                     }
                 } else if (trig < SPIN_THRESHOLD) {
+                    // release = stop
                     state = FireState.IDLE;
                 }
                 break;
@@ -246,7 +236,7 @@ public class OBTeleOp_ShooterRPMTuner extends OpMode {
                 setShooterRpm(targetRpm);
 
                 if (timer.milliseconds() >= FIRE_PULSE_MS) {
-                    tipperServo.setPosition(SERVO_REST_POS);
+                    trapServo.setPosition(SERVO_REST_POS);
                     state = FireState.RECOVER;
                 }
                 break;
@@ -254,6 +244,7 @@ public class OBTeleOp_ShooterRPMTuner extends OpMode {
             case RECOVER:
                 setShooterRpm(targetRpm);
 
+                // must release partway before allowing another shot
                 if (trig < RESET_THRESHOLD) {
                     if (trig >= SPIN_THRESHOLD) {
                         state = FireState.SPINNING;
@@ -266,26 +257,20 @@ public class OBTeleOp_ShooterRPMTuner extends OpMode {
                 break;
         }
 
-        // Telemetry (show corrected “shooting+” RPM for both sides)
-        double lRpm = getShooterRpmShootPositive(shooterLeft, LEFT_CMD_SIGN);
-        double rRpm = getShooterRpmShootPositive(shooterRight, RIGHT_CMD_SIGN);
+        // Telemetry (MATCH driver TeleOp conversion)
+        double m1Rpm = ticksPerSecToRpm(shooterMotor.getVelocity());
+        double m2Rpm = ticksPerSecToRpm(shooterMotor2.getVelocity());
         boolean atSpeedNow = shooterAtSpeed(targetRpm, atSpeedTolRpm);
 
         telemetry.addData("Target RPM", "%.0f", targetRpm);
-        telemetry.addData("L RPM (shooting+)", "%.0f", lRpm);
-        telemetry.addData("R RPM (shooting+)", "%.0f", rRpm);
+        telemetry.addData("Motor1 RPM", "%.0f", m1Rpm);
+        telemetry.addData("Motor2 RPM", "%.0f", m2Rpm);
         telemetry.addData("Tol RPM", "%.0f", atSpeedTolRpm);
         telemetry.addData("At speed?", atSpeedNow);
         telemetry.addData("Require at speed?", requireAtSpeedToFire);
         telemetry.addData("Trigger", "%.2f", trig);
         telemetry.addData("State", state);
-        telemetry.addData("Tipper", tipperServo.getPosition() >= (SERVO_FIRE_POS - 0.02) ? "FIRING" : "REST");
-
-        // Raw encoder signs for debugging
-        telemetry.addData("Raw L pos", shooterLeft.getCurrentPosition());
-        telemetry.addData("Raw R pos", shooterRight.getCurrentPosition());
-        telemetry.addData("Raw L vel (t/s)", "%.0f", shooterLeft.getVelocity());
-        telemetry.addData("Raw R vel (t/s)", "%.0f", shooterRight.getVelocity());
+        telemetry.addData("TrapServo pos", "%.2f", trapServo.getPosition());
 
         telemetry.update();
     }
@@ -293,46 +278,36 @@ public class OBTeleOp_ShooterRPMTuner extends OpMode {
     @Override
     public void stop() {
         setShooterRpm(0.0);
+
         if (intakeMotor != null) intakeMotor.setPower(0.0);
-        if (servoTrapLeft != null) servoTrapLeft.setPower(0.0);
-        if (servoTrapRight != null) servoTrapRight.setPower(0.0);
-        if (tipperServo != null) tipperServo.setPosition(SERVO_REST_POS);
+        if (upperIntakeMotor != null) upperIntakeMotor.setPower(0.0);
+
+        if (trapServo != null) trapServo.setPosition(SERVO_REST_POS);
+
         robot.setDriverPowerZERO();
     }
 
     // =========================
-    // Shooter helpers (ticks/sec)
+    // Shooter helpers (MATCH driver TeleOp sign logic)
     // =========================
     private void setShooterRpm(double rpm) {
-        // Allow reverse if you ever want it; for tuning you’ll keep rpm positive.
         double tps = rpmToTicksPerSec(rpm);
-
-        // Apply explicit physical sign convention
-        shooterLeft.setVelocity(LEFT_CMD_SIGN * tps);
-        shooterRight.setVelocity(RIGHT_CMD_SIGN * tps);
+        shooterMotor.setVelocity(tps);
+        shooterMotor2.setVelocity(tps);
     }
 
     private boolean shooterAtSpeed(double targetRpm, double tolRpm) {
         double tgt = Math.abs(targetRpm);
-        double l = getShooterRpmShootPositive(shooterLeft, LEFT_CMD_SIGN);
-        double r = getShooterRpmShootPositive(shooterRight, RIGHT_CMD_SIGN);
+        double l = Math.abs(ticksPerSecToRpm(shooterMotor.getVelocity()));
+        double r = Math.abs(ticksPerSecToRpm(shooterMotor2.getVelocity()));
         return Math.abs(l - tgt) <= tolRpm && Math.abs(r - tgt) <= tolRpm;
     }
 
-    /**
-     * Returns RPM where "shooting direction" is positive, regardless of raw encoder sign.
-     */
-    private double getShooterRpmShootPositive(DcMotorEx m, int cmdSign) {
-        double tpsRaw = m.getVelocity();        // ticks/sec raw (right likely negative)
-        double tpsShootPos = tpsRaw * cmdSign;  // flip so shooting is positive
-        return ticksPerSecToRpm(tpsShootPos);
-    }
-
     private static double rpmToTicksPerSec(double rpm) {
-        return (rpm * SHOOTER_TICKS_PER_REV) / 60.0;
+        return (rpm * TICKS_PER_AXLE_REV) / 60.0;
     }
 
     private static double ticksPerSecToRpm(double tps) {
-        return (tps * 60.0) / SHOOTER_TICKS_PER_REV;
+        return (tps * 60.0) / TICKS_PER_AXLE_REV;
     }
 }

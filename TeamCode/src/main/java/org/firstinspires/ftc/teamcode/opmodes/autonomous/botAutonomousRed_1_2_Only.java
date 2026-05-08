@@ -27,14 +27,14 @@ public class botAutonomousRed_1_2_Only extends LinearOpMode {
     private static final Pose2d SHOOTING_POSITION  = new Pose2d(-47, 0, Math.toRadians(0));
     private static final Pose2d SHOOTING_POS_FINAL = new Pose2d(-36.929, 13.709, Math.toRadians(-16));
 
-    private static final Pose2d PICK_UP_1    = new Pose2d(-43.6, 17.0, Math.toRadians(-141));
-    private static final Pose2d PICKUP_END_1 = new Pose2d(-26.5, 36.6, Math.toRadians(-141));
+    private static final Pose2d PICK_UP_1    = new Pose2d(-43.6, -17.0, Math.toRadians(141));
+    private static final Pose2d PICKUP_END_1 = new Pose2d(-26.5, -36.6, Math.toRadians(141));
 
-    private static final Pose2d PICKUP_2     = new Pose2d(-57.76, 38.8, Math.toRadians(-141));
-    private static final Pose2d PICKUP_END_2 = new Pose2d(-37.5, 56.3, Math.toRadians(-141));
+    private static final Pose2d PICKUP_2     = new Pose2d(-59.76, -40.8, Math.toRadians(141));
+    private static final Pose2d PICKUP_END_2 = new Pose2d(-37.5, -56.3, Math.toRadians(141));
 
-    private static final Pose2d PICKUP_3     = new Pose2d(-71.3, 57, Math.toRadians(-141));
-    private static final Pose2d PICKUP_END_3 = new Pose2d(-53.5, 73.8, Math.toRadians(-141));
+    private static final Pose2d PICKUP_3     = new Pose2d(-71.3, -57, Math.toRadians(141));
+    private static final Pose2d PICKUP_END_3 = new Pose2d(-53.5, -73.8, Math.toRadians(141));
 
     // =========================
     // Shooter targets (RPM)  -> converted to ticks/sec for setVelocity()
@@ -289,6 +289,19 @@ public class botAutonomousRed_1_2_Only extends LinearOpMode {
         upperIntakeMotor.setPower(0.0);
         sleep(100);
 
+        intakeMotor.setPower(-1.0);
+        upperIntakeMotor.setPower(1.0);
+        sleep(100);
+        intakeMotor.setPower(0.0);
+        upperIntakeMotor.setPower(0.0);
+        sleep(100);
+
+        intakeMotor.setPower(-1.0);
+        upperIntakeMotor.setPower(1.0);
+        sleep(100);
+        intakeMotor.setPower(0.0);
+        upperIntakeMotor.setPower(0.0);
+        sleep(100);
         intakeMotor.setPower(-1.0);
         upperIntakeMotor.setPower(1.0);
         sleep(100);

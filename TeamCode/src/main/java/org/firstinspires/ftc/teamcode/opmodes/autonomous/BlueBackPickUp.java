@@ -1,5 +1,5 @@
 // File: TeamCode/src/main/java/org/firstinspires/ftc/teamcode/opmodes/autonomous/botAutonomousRR.java
-// this code only picks up the first 2 rows of ball, due partner
+// this code only pick up the first 2 rows of ball, due partner
 package org.firstinspires.ftc.teamcode.opmodes.autonomous;
 
 import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
@@ -17,29 +17,31 @@ import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.teamcode.PinpointDrive;
 
-@Autonomous(name = "botAutonomousRed", group = "OB")
-public class botAutonomousRed extends LinearOpMode {
+@Autonomous(name = "BlueBackPickUp", group = "OB")
+public class BlueBackPickUp extends LinearOpMode {
 
     // Road Runner units: inches + radians
     private static final Pose2d INITIAL_POSE = new Pose2d(0.0, 0.0, 0.0);
 
     // Poses (tune)
-    private static final Pose2d SHOOTING_POSITION  = new Pose2d(-48, 0, Math.toRadians(360));
-    private static final Pose2d SHOOTING_POS_FINAL = new Pose2d(-36.929, -13.709, Math.toRadians(-16));
+    private static final Pose2d SHOOTING_POSITION  = new Pose2d(5.4, 1.4, Math.toRadians(15.91));
+    private static final Pose2d PARKING_POSITION  = new Pose2d(8.9, 16.5, Math.toRadians(0));
 
-    private static final Pose2d PICK_UP_1    = new Pose2d(-51.8, -11.32, Math.toRadians(141));
-    private static final Pose2d PICKUP_END_1 = new Pose2d(-24.2, -36.9, Math.toRadians(141));
+    private static final Pose2d SHOOTING_POS_FINAL = new Pose2d(-36.929, 13.709, Math.toRadians(-18));
 
-    private static final Pose2d PICKUP_2     = new Pose2d(-63.04, -32.6, Math.toRadians(141));
-    private static final Pose2d PICKUP_END_2 = new Pose2d(-36.8, -58.5, Math.toRadians(141));
+    private static final Pose2d PICK_UP_1    = new Pose2d(-43.6, -17.0, Math.toRadians(141));
+    private static final Pose2d PICKUP_END_1 = new Pose2d(-26.5, -36.6, Math.toRadians(141));
 
-    private static final Pose2d PICKUP_3     = new Pose2d(-74.8, -53.07, Math.toRadians(141));
-    private static final Pose2d PICKUP_END_3 = new Pose2d(-47.8, -77.6, Math.toRadians(141));
+    private static final Pose2d PICKUP_2     = new Pose2d(-59.76, -40.8, Math.toRadians(141));
+    private static final Pose2d PICKUP_END_2 = new Pose2d(-37.5, -56.3, Math.toRadians(141));
+
+    private static final Pose2d PICKUP_3     = new Pose2d(26.6, 8.0, Math.toRadians(-90));
+    private static final Pose2d PICKUP_END_3 = new Pose2d(26.6, 48.8, Math.toRadians(-90));
 
     // =========================
     // Shooter targets (RPM)  -> converted to ticks/sec for setVelocity()
     // =========================
-    private static final double SHOOTER_TARGET_RPM = 2750.0;
+    private static final double SHOOTER_TARGET_RPM = 3730.0;
 
     // =========================
     // Encoder conversion (match your TeleOp)
@@ -119,23 +121,24 @@ public class botAutonomousRed extends LinearOpMode {
         setShooterRpm(SHOOTER_TARGET_RPM);
 
         runAction(drive, drive.actionBuilder(drive.pose)
-                .lineToX(-35)
+                .splineToLinearHeading(SHOOTING_POSITION, Math.toRadians(0))
                 .build());
 
         trapServo.setPosition(0.82);
-        sleep(750);
+        sleep(1000);
         shootSequence();
+        sleep(500);
         trapServo.setPosition(0.15);
 
         // Pickup 1
         runAction(drive, drive.actionBuilder(drive.pose)
-                .splineToLinearHeading(PICK_UP_1, Math.toRadians(0))
+                .splineToLinearHeading(PICKUP_3, Math.toRadians(0))
                 .build());
 
         intakeMotor.setPower(-1.0);
         runAction(drive, drive.actionBuilder(drive.pose)
-                .lineToX(PICKUP_END_1.position.x)
-                .lineToY(PICKUP_END_1.position.y)
+                .lineToX(PICKUP_END_3.position.x)
+                .lineToY(PICKUP_END_3.position.y)
                 .build());
         intakeMotor.setPower(0.0);
 
@@ -147,8 +150,18 @@ public class botAutonomousRed extends LinearOpMode {
         runAction(drive, drive.actionBuilder(drive.pose)
                 .splineToLinearHeading(SHOOTING_POSITION, Math.toRadians(0))
                 .build());
-        movingBack();
 
+        trapServo.setPosition(0.82);
+        sleep(1000);
+        shootSequence();
+        sleep(500);
+        trapServo.setPosition(0.15);
+
+        runAction(drive, drive.actionBuilder(drive.pose)
+                .splineToLinearHeading(PARKING_POSITION, Math.toRadians(0))
+                .build());
+        setShooterRpm(0);
+/*
         trapServo.setPosition(0.82);
         sleep(1000);
         shootSequence();
@@ -179,16 +192,16 @@ public class botAutonomousRed extends LinearOpMode {
         sleep(1000);
         shootSequence();
         trapServo.setPosition(0.15);
-
+/*
         // Pickup 3
         runAction(drive, drive.actionBuilder(drive.pose)
                 .splineToLinearHeading(PICKUP_3, Math.toRadians(0))
                 .build());
-        //intakeMotor.setPower(-1.0);
-        //runAction(drive, drive.actionBuilder(drive.pose)
-          //      .lineToX(PICKUP_END_3.position.x)
-            //    .lineToY(PICKUP_END_3.position.y)
-              //  .build());
+        intakeMotor.setPower(-1.0);
+        runAction(drive, drive.actionBuilder(drive.pose)
+                .lineToX(PICKUP_END_3.position.x)
+                .lineToY(PICKUP_END_3.position.y)
+                .build());
         intakeMotor.setPower(0.0);
 
         // Back to shooting + shoot
@@ -201,7 +214,7 @@ public class botAutonomousRed extends LinearOpMode {
         trapServo.setPosition(0.82);
         sleep(1000);
         shootSequence();
-
+*/
         // Stop everything
         setShooterRpm(0.0);
         intakeMotor.setPower(0.0);
@@ -261,57 +274,47 @@ public class botAutonomousRed extends LinearOpMode {
     // =========================
     private void shootSequence() {
         // Assumes shooter is already spun up (setShooterRpm called before this)
+        intakeMotor.setPower(-1.0);
         upperIntakeMotor.setPower(1.0);
         sleep(100);
         intakeMotor.setPower(0.0);
         upperIntakeMotor.setPower(0.0);
-        sleep(100);
-
-        upperIntakeMotor.setPower(1.0);
-        sleep(100);
-        intakeMotor.setPower(0.0);
-        upperIntakeMotor.setPower(0.0);
-        sleep(100);
+        sleep(500);
 
         intakeMotor.setPower(-1.0);
         upperIntakeMotor.setPower(1.0);
         sleep(100);
         intakeMotor.setPower(0.0);
         upperIntakeMotor.setPower(0.0);
-        sleep(100);
+        sleep(500);
 
         intakeMotor.setPower(-1.0);
         upperIntakeMotor.setPower(1.0);
         sleep(100);
         intakeMotor.setPower(0.0);
         upperIntakeMotor.setPower(0.0);
-        sleep(100);
+        sleep(500);
 
         intakeMotor.setPower(-1.0);
         upperIntakeMotor.setPower(1.0);
         sleep(100);
         intakeMotor.setPower(0.0);
         upperIntakeMotor.setPower(0.0);
-        sleep(100);
-        intakeMotor.setPower(-1.0);
-        upperIntakeMotor.setPower(1.0);
-        sleep(100);
-        intakeMotor.setPower(0.0);
-        upperIntakeMotor.setPower(0.0);
-        sleep(100);
-        intakeMotor.setPower(-1.0);
-        upperIntakeMotor.setPower(1.0);
-        sleep(100);
-        intakeMotor.setPower(0.0);
-        upperIntakeMotor.setPower(0.0);
-        sleep(100);
+        sleep(500);
 
         intakeMotor.setPower(-1.0);
         upperIntakeMotor.setPower(1.0);
         sleep(100);
         intakeMotor.setPower(0.0);
         upperIntakeMotor.setPower(0.0);
+        sleep(500);
+
+        intakeMotor.setPower(-1.0);
+        upperIntakeMotor.setPower(1.0);
         sleep(100);
+        intakeMotor.setPower(0.0);
+        upperIntakeMotor.setPower(0.0);
+        sleep(500);
     }
 
     private void movingBack() {

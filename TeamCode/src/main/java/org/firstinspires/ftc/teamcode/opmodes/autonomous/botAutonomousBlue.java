@@ -24,13 +24,13 @@ public class botAutonomousBlue extends LinearOpMode {
     private static final Pose2d INITIAL_POSE = new Pose2d(0.0, 0.0, 0.0);
 
     // Poses (tune)
-    private static final Pose2d SHOOTING_POSITION  = new Pose2d(-48, 0, Math.toRadians(0));
+    private static final Pose2d SHOOTING_POSITION  = new Pose2d(-48, 0, Math.toRadians(360));
     private static final Pose2d SHOOTING_POS_FINAL = new Pose2d(-36.929, 13.709, Math.toRadians(-16));
 
     private static final Pose2d PICK_UP_1    = new Pose2d(-43.6, 17.0, Math.toRadians(-141));
     private static final Pose2d PICKUP_END_1 = new Pose2d(-24.2, 36.9, Math.toRadians(-141));
 
-    private static final Pose2d PICKUP_2     = new Pose2d(-57.76, 38.8, Math.toRadians(-141));
+    private static final Pose2d PICKUP_2     = new Pose2d(-59.76, 40.8, Math.toRadians(-141));
     private static final Pose2d PICKUP_END_2 = new Pose2d(-34.8, 58.5, Math.toRadians(-141));
 
     private static final Pose2d PICKUP_3     = new Pose2d(-71.3, 57, Math.toRadians(-141));
@@ -179,7 +179,7 @@ public class botAutonomousBlue extends LinearOpMode {
         sleep(1000);
         shootSequence();
         trapServo.setPosition(0.15);
-/*
+
         // Pickup 3
         runAction(drive, drive.actionBuilder(drive.pose)
                 .splineToLinearHeading(PICKUP_3, Math.toRadians(0))
@@ -201,7 +201,7 @@ public class botAutonomousBlue extends LinearOpMode {
         trapServo.setPosition(0.82);
         sleep(1000);
         shootSequence();
-*/
+
         // Stop everything
         setShooterRpm(0.0);
         intakeMotor.setPower(0.0);
@@ -289,6 +289,19 @@ public class botAutonomousBlue extends LinearOpMode {
         upperIntakeMotor.setPower(0.0);
         sleep(100);
 
+        intakeMotor.setPower(-1.0);
+        upperIntakeMotor.setPower(1.0);
+        sleep(100);
+        intakeMotor.setPower(0.0);
+        upperIntakeMotor.setPower(0.0);
+        sleep(100);
+
+        intakeMotor.setPower(-1.0);
+        upperIntakeMotor.setPower(1.0);
+        sleep(100);
+        intakeMotor.setPower(0.0);
+        upperIntakeMotor.setPower(0.0);
+        sleep(100);
         intakeMotor.setPower(-1.0);
         upperIntakeMotor.setPower(1.0);
         sleep(100);

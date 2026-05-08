@@ -81,12 +81,9 @@ public class OBTeleOp_Shooter extends OpMode {
         shooterMotor.setVelocityPIDFCoefficients(SHOOTER_kP, SHOOTER_kI, SHOOTER_kD, SHOOTER_kF);
         shooterMotor2.setVelocityPIDFCoefficients(SHOOTER_kP, SHOOTER_kI, SHOOTER_kD, SHOOTER_kF);
 
-        shooterMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-        shooterMotor2.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-
-        shooterMotor2.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        // Pick ONE behavior. You were setting FLOAT then immediately overriding to BRAKE.
         shooterMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-
+        shooterMotor2.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         intakeMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         intakeMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
@@ -113,16 +110,36 @@ public class OBTeleOp_Shooter extends OpMode {
     public void loop() {
         robot.driveFromGamepad(gamepad1, true, 0.8);
 
-        // Shooter control (simple)
-        // Right bumper = forward shooter RPM
-        // D-pad up = reverse shooter RPM
-        // Otherwise = stop
+        // =========================
+        // Shooter control (GAMEPAD1 + GAMEPAD2)
+        //
+        // GP1:
+        //   dpad_up       = reverse RPM
+        //   right_bumper  = forward RPM
+        //
+        // GP2:
+        //   right_bumper  = forward RPM
+        //   left_bumper   = stop
+        //
+        // Priority (top wins):
+        //   1) GP1 reverse (dpad_up)
+        //   2) Any forward request (GP1 RB OR GP2 RB)
+        //   3) Stop (default, also GP2 LB)
+        // =========================
         double shooterTargetRpm = 0.0;
 
-        if (gamepad1.dpad_up) {
+        boolean gp1Reverse = gamepad1.dpad_up;
+        boolean gp1Forward = gamepad1.right_bumper;
+
+        boolean gp2Forward = gamepad2.right_bumper;
+        boolean gp2Stop = gamepad2.left_bumper;
+
+        if (gp1Reverse) {
             shooterTargetRpm = SHOOTER_REVERSE_RPM;
-        } else if (gamepad1.right_bumper) {
+        } else if (gp1Forward || gp2Forward) {
             shooterTargetRpm = SHOOTER_TARGET_RPM;
+        } else if (gp2Stop) {
+            shooterTargetRpm = 0.0;
         } else {
             shooterTargetRpm = 0.0;
         }
@@ -170,16 +187,17 @@ public class OBTeleOp_Shooter extends OpMode {
             resetPulseIfNeeded(false, ltActive);
         }
 
-        if (gamepad1.b) {
+        // Trap servo on gamepad2
+        if (gamepad2.a) {
             trapServo.setPosition(0.05); // Close
         }
-        if (gamepad1.y) {
-            trapServo.setPosition(.80); // Open
+        if (gamepad2.b) {
+            trapServo.setPosition(0.80); // Open
         }
 
         // Telemetry
-        double m1Rpm = Math.abs(ticksPerSecToRpm(shooterMotor.getVelocity()));
-        double m2Rpm = Math.abs(ticksPerSecToRpm(shooterMotor2.getVelocity()));
+        double m1Rpm = ticksPerSecToRpm(shooterMotor.getVelocity());
+        double m2Rpm = ticksPerSecToRpm(shooterMotor2.getVelocity());
 
         telemetry.addData("Shooter Target RPM", "%.0f", shooterTargetRpm);
         telemetry.addData("Motor1 RPM", "%.0f", m1Rpm);
@@ -204,7 +222,7 @@ public class OBTeleOp_Shooter extends OpMode {
     // =========================
 
     /**
-     * Runs a 0.5s ON / 0.25s OFF pattern while LEFT trigger is held.
+     * Runs a PULSE_ON_SECONDS ON / PULSE_OFF_SECONDS OFF pattern while LEFT trigger is held.
      * Starts with ON immediately on initial activation.
      * Pulses BOTH intakes.
      */

@@ -30,7 +30,7 @@ public class botAutonomousBlue_1_2_Only extends LinearOpMode {
     private static final Pose2d PICK_UP_1    = new Pose2d(-43.6, 17.0, Math.toRadians(-141));
     private static final Pose2d PICKUP_END_1 = new Pose2d(-24.2, 36.9, Math.toRadians(-141));
 
-    private static final Pose2d PICKUP_2     = new Pose2d(-57.76, 38.8, Math.toRadians(-141));
+    private static final Pose2d PICKUP_2     = new Pose2d(-59.76, 40.8, Math.toRadians(-141));
     private static final Pose2d PICKUP_END_2 = new Pose2d(-34.8, 58.5, Math.toRadians(-141));
 
     private static final Pose2d PICKUP_3     = new Pose2d(-71.3, 57, Math.toRadians(-141));
@@ -302,7 +302,21 @@ public class botAutonomousBlue_1_2_Only extends LinearOpMode {
         intakeMotor.setPower(0.0);
         upperIntakeMotor.setPower(0.0);
         sleep(100);
+        intakeMotor.setPower(-1.0);
+        upperIntakeMotor.setPower(1.0);
+        sleep(100);
+        intakeMotor.setPower(0.0);
+        upperIntakeMotor.setPower(0.0);
+        sleep(100);
+
+        intakeMotor.setPower(-1.0);
+        upperIntakeMotor.setPower(1.0);
+        sleep(100);
+        intakeMotor.setPower(0.0);
+        upperIntakeMotor.setPower(0.0);
+        sleep(100);
     }
+
 
     private void movingBack() {
         // Do NOT reverse shooter here (that can spit backwards).
