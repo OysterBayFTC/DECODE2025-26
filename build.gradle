@@ -12,7 +12,6 @@ buildscript {
     dependencies {
         // Note for FTC Teams: Do not modify this yourself.
         classpath 'com.android.tools.build:gradle:8.7.0'
-
     }
 }
 
@@ -23,6 +22,11 @@ allprojects {
         mavenCentral()
         google()
     }
+
+    // Redirect build directory to a local folder outside of OneDrive to prevent AccessDeniedException.
+    // OneDrive often locks files in the 'build' directory during sync.
+    def rootBuildDir = new File("C:/temp/BIOBUZZ-build", rootProject.name)
+    project.layout.buildDirectory.set(new File(rootBuildDir, project.path.replace(":", "/")))
 }
 
 repositories {
